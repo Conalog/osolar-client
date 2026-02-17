@@ -15,7 +15,7 @@ from osolar_link_client import OsolarLinkClient
 
 client = OsolarLinkClient(api_key="YOUR_API_KEY")
 result = client.list_linked_plants()
-print(result["data"])
+print(result.get("data"))
 ```
 
 ## 실제 API 스모크 테스트

@@ -25,7 +25,7 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
-	return fmt.Sprintf("osolar api error %d %s", e.StatusCode, e.Status)
+	return fmt.Sprintf("osolar api error %d %s: %s", e.StatusCode, e.Status, e.Body)
 }
 
 func NewClient(apiKey string, baseURL string, httpClient *http.Client) *Client {

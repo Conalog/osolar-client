@@ -126,7 +126,11 @@ func main() {
 		}
 	}
 
-	payload, _ := json.MarshalIndent(results, "", "  ")
+	payload, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to marshal results: %v\n", err)
+		os.Exit(1)
+	}
 	fmt.Println(string(payload))
 
 	hardFail := false

@@ -9,7 +9,7 @@ ctx := context.Background()
 client := osolarlink.NewClient("YOUR_API_KEY", "", nil)
 resp, err := client.ListLinkedPlants(ctx)
 if err != nil {
-  panic(err)
+  log.Fatal(err)
 }
 fmt.Println(resp.Data)
 ```

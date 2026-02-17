@@ -14,8 +14,12 @@ npm install
 import { OsolarLinkClient } from "@osolar-sdk/osolar-link-client";
 
 const client = new OsolarLinkClient({ apiKey: process.env.OSOLAR_API_KEY! });
-const plants = await client.listLinkedPlants();
-console.log(plants.data);
+try {
+  const plants = await client.listLinkedPlants();
+  console.log(plants.data);
+} catch (error) {
+  console.error(error);
+}
 ```
 
 ## 실제 API 스모크 테스트
