@@ -1,5 +1,5 @@
 {
-  "name": "@osolar-sdk/osolar-client",
+  "name": "@conalog/osolar-sdk",
   "version": "0.1.0",
   "description": "Handwritten TypeScript client for OSOLAR-LINK Open API",
   "type": "module",
