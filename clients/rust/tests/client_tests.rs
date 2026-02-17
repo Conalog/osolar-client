@@ -1,8 +1,8 @@
 use httpmock::Method::GET;
 use httpmock::MockServer;
-use osolar_link_client::client::OsolarLinkClient;
-use osolar_link_client::error::ApiError;
-use osolar_link_client::models::SearchPlantsParams;
+use osolar_client::client::OsolarLinkClient;
+use osolar_client::error::ApiError;
+use osolar_client::models::SearchPlantsParams;
 
 #[test]
 fn search_plants_sends_query_and_header() {

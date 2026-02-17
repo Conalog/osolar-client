@@ -1,4 +1,4 @@
-# osolar-link-go
+# osolar-client (Go)
 
 OSOLAR-LINK Open API용 수동 구현 Go SDK입니다.
 
@@ -19,15 +19,15 @@ go mod tidy
 ## GitHub 소스에서 설치 (다른 프로젝트에서 사용)
 
 ```bash
-git clone https://github.com/Conalog/osolar-sdk.git
+git clone https://github.com/Conalog/osolar-client.git
 ```
 
 소비 프로젝트 `go.mod`에서 로컬 clone 경로를 `replace`로 연결합니다.
 
 ```go
-require github.com/osolar-sdk/osolar-link-go v0.0.0
+require github.com/conalog/osolar-client/clients/go v0.0.0
 
-replace github.com/osolar-sdk/osolar-link-go => /absolute/path/to/osolar-sdk/clients/go
+replace github.com/conalog/osolar-client/clients/go => /absolute/path/to/osolar-client/clients/go
 ```
 
 ## 환경 변수
@@ -46,7 +46,7 @@ import (
 	"fmt"
 	"os"
 
-	osolarlink "github.com/osolar-sdk/osolar-link-go"
+	osolarlink "github.com/conalog/osolar-client/clients/go"
 )
 
 func main() {

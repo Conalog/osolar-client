@@ -1,4 +1,4 @@
-# osolar-link-client (Rust)
+# osolar-client (Rust)
 
 OSOLAR-LINK Open API용 수동 구현 Rust SDK입니다.
 
@@ -19,14 +19,14 @@ cargo build
 ## GitHub 소스에서 설치 (다른 프로젝트에서 사용)
 
 ```bash
-git clone https://github.com/Conalog/osolar-sdk.git
+git clone https://github.com/Conalog/osolar-client.git
 ```
 
 소비 프로젝트의 `Cargo.toml`에 path dependency로 연결합니다.
 
 ```toml
 [dependencies]
-osolar-link-client = { path = "/absolute/path/to/osolar-sdk/clients/rust" }
+osolar-client = { path = "/absolute/path/to/osolar-client/clients/rust" }
 ```
 
 ## 환경 변수
@@ -38,9 +38,9 @@ export OSOLAR_API_KEY="..."
 ## 빠른 시작
 
 ```rust
-use osolar_link_client::OsolarLinkClient;
+use osolar_client::OsolarLinkClient;
 
-fn main() -> Result<(), osolar_link_client::ApiError> {
+fn main() -> Result<(), osolar_client::ApiError> {
     let api_key = std::env::var("OSOLAR_API_KEY").expect("OSOLAR_API_KEY is required");
     let client = OsolarLinkClient::new(api_key);
 
@@ -65,9 +65,9 @@ fn main() -> Result<(), osolar_link_client::ApiError> {
 ## 실전 예시 (링크 1건 기준 조회 흐름)
 
 ```rust
-use osolar_link_client::OsolarLinkClient;
+use osolar_client::OsolarLinkClient;
 
-fn main() -> Result<(), osolar_link_client::ApiError> {
+fn main() -> Result<(), osolar_client::ApiError> {
     let api_key = std::env::var("OSOLAR_API_KEY").expect("OSOLAR_API_KEY is required");
     let client = OsolarLinkClient::new(api_key);
 

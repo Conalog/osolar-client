@@ -1,4 +1,4 @@
-use osolar_link_client::OsolarLinkClient;
+use osolar_client::OsolarLinkClient;
 
 fn main() {
     let api_key = std::env::var("OSOLAR_API_KEY").unwrap_or_else(|_| {

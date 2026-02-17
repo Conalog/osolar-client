@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	osolarlink "github.com/osolar-sdk/osolar-link-go"
+	osolarlink "github.com/conalog/osolar-client/clients/go"
 )
 
 func main() {

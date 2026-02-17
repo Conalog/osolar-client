@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "osolar-link-client"
+name = "osolar-client"
 version = "0.1.0"
 description = "Handwritten Python client for OSOLAR-LINK Open API"
 readme = "README.md"

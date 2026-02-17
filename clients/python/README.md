@@ -1,4 +1,4 @@
-# osolar-link-client (Python)
+# osolar-client (Python)
 
 OSOLAR-LINK Open API용 수동 구현 Python SDK입니다.
 
@@ -23,15 +23,15 @@ pip install -e '.[dev]'
 `pip`은 Git 저장소의 하위 폴더를 직접 지정할 수 있습니다.
 
 ```bash
-pip install "osolar-link-client @ git+https://github.com/Conalog/osolar-sdk.git@main#subdirectory=clients/python"
+pip install "osolar-client @ git+https://github.com/Conalog/osolar-client.git@main#subdirectory=clients/python"
 ```
 
 브랜치 대신 태그/커밋 SHA를 써도 됩니다.
 
 ```bash
-pip install "osolar-link-client @ git+https://github.com/Conalog/osolar-sdk.git@v0.1.0#subdirectory=clients/python"
+pip install "osolar-client @ git+https://github.com/Conalog/osolar-client.git@v0.1.0#subdirectory=clients/python"
 # 또는
-pip install "osolar-link-client @ git+https://github.com/Conalog/osolar-sdk.git@<commit-sha>#subdirectory=clients/python"
+pip install "osolar-client @ git+https://github.com/Conalog/osolar-client.git@<commit-sha>#subdirectory=clients/python"
 ```
 
 ## 환경 변수

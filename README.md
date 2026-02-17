@@ -1,4 +1,4 @@
-# osolar-sdk
+# osolar-client
 
 `OSOLAR-LINK Open API`용 멀티 언어 클라이언트 SDK 모노레포입니다.
 

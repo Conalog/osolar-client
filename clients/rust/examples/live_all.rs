@@ -1,8 +1,8 @@
-use osolar_link_client::models::{
+use osolar_client::models::{
     MonthlyBillingParams, MonthlyGenerationParams, PlantLinkRequest, SearchPlantsParams,
 };
-use osolar_link_client::ApiError;
-use osolar_link_client::OsolarLinkClient;
+use osolar_client::ApiError;
+use osolar_client::OsolarLinkClient;
 use serde_json::{json, Map, Value};
 
 fn main() {

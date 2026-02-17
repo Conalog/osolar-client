@@ -1,3 +1,3 @@
-module github.com/osolar-sdk/osolar-link-go
+module github.com/conalog/osolar-client/clients/go
 
 go 1.21

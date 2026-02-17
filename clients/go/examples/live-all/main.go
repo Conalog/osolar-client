@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	osolarlink "github.com/osolar-sdk/osolar-link-go"
+	osolarlink "github.com/conalog/osolar-client/clients/go"
 )
 
 type routeResult struct {
