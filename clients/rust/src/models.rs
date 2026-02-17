@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiResponse<T> {
@@ -24,11 +23,18 @@ pub struct PlantOwner {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CapacityValue {
+    Number(f64),
+    Text(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlantFeatureProperties {
     pub plant_uuid: String,
     pub plant_name: String,
     pub plant_address: String,
-    pub plant_capacity: Value,
+    pub plant_capacity: CapacityValue,
     pub plant_owner: PlantOwner,
 }
 
