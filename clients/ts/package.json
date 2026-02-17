@@ -1,0 +1,28 @@
+{
+  "name": "@osolar-sdk/osolar-link-client",
+  "version": "0.1.0",
+  "description": "Handwritten TypeScript client for OSOLAR-LINK Open API",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "example:live": "node examples/live-smoke.js",
+    "example:live-all": "node examples/live-all.js"
+  },
+  "keywords": [
+    "osolar",
+    "openapi",
+    "sdk"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
