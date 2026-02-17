@@ -90,6 +90,7 @@ export class OsolarLinkClient {
     linkId: string,
     params: MonthlyGenerationParams = {},
   ): Promise<ApiResponse<GenerationAmountResponse[]>> {
+    this.validateYearRange(params, "getMonthlyGeneration");
     return this.request<ApiResponse<GenerationAmountResponse[]>>(
       "GET",
       `/v1/links/${encodeURIComponent(linkId)}/generation/monthly`,
@@ -106,6 +107,7 @@ export class OsolarLinkClient {
     linkId: string,
     params: MonthlyBillingParams = {},
   ): Promise<ApiResponse<BillingAmountResponse[]>> {
+    this.validateYearRange(params, "getMonthlyBilling");
     return this.request<ApiResponse<BillingAmountResponse[]>>(
       "GET",
       `/v1/links/${encodeURIComponent(linkId)}/billing/monthly`,
@@ -152,20 +154,57 @@ export class OsolarLinkClient {
     });
 
     const text = await response.text();
-    const parsed = text.length > 0 ? safeParseJson(text) : null;
+    const parsed = parseResponseBody(text);
 
     if (!response.ok) {
-      throw new ApiError(response.status, response.statusText, parsed);
+      throw new ApiError(
+        response.status,
+        response.statusText,
+        parsed.kind === "invalid" ? parsed.rawText : parsed.value,
+      );
     }
 
-    return parsed as T;
+    if (parsed.kind === "empty") {
+      throw new TypeError("Expected JSON response body but received empty body");
+    }
+
+    if (parsed.kind === "invalid") {
+      throw new TypeError("Expected JSON response but received non-JSON body");
+    }
+
+    if (parsed.value === null || typeof parsed.value !== "object") {
+      throw new TypeError("Expected JSON object response");
+    }
+
+    return parsed.value as T;
+  }
+
+  private validateYearRange(
+    params: { startYear?: number; endYear?: number },
+    methodName: "getMonthlyGeneration" | "getMonthlyBilling",
+  ): void {
+    if (
+      params.startYear !== undefined &&
+      params.endYear !== undefined &&
+      params.startYear > params.endYear
+    ) {
+      throw new RangeError(
+        `${methodName}: startYear (${params.startYear}) must be less than or equal to endYear (${params.endYear})`,
+      );
+    }
   }
 }
 
-function safeParseJson(text: string): unknown {
+function parseResponseBody(text: string):
+  | { kind: "empty"; value: null }
+  | { kind: "json"; value: unknown }
+  | { kind: "invalid"; rawText: string } {
+  if (text.length === 0) {
+    return { kind: "empty", value: null };
+  }
   try {
-    return JSON.parse(text);
+    return { kind: "json", value: JSON.parse(text) };
   } catch {
-    return text;
+    return { kind: "invalid", rawText: text };
   }
 }
