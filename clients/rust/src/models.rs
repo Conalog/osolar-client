@@ -25,6 +25,7 @@ pub struct PlantOwner {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum CapacityValue {
+    // Live responses may encode this field as either a number or a numeric string.
     Number(f64),
     Text(String),
 }

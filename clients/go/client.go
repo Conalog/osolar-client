@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 const defaultBaseURL = "https://openapi.osolar.io"
@@ -151,8 +152,5 @@ func doJSON[T any](ctx context.Context, c *Client, method string, path string, q
 }
 
 func trimTrailingSlash(baseURL string) string {
-	for len(baseURL) > 0 && baseURL[len(baseURL)-1] == '/' {
-		baseURL = baseURL[:len(baseURL)-1]
-	}
-	return baseURL
+	return strings.TrimRight(baseURL, "/")
 }
