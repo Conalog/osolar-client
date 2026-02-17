@@ -147,20 +147,20 @@ pub struct PlantOverviewResponse {
     pub recent_tasks: Vec<TaskDetail>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SearchPlantsParams {
     pub q: String,
     pub field: String,
     pub distance_km: Option<f64>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct MonthlyGenerationParams {
     pub start_year: Option<i64>,
     pub end_year: Option<i64>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct MonthlyBillingParams {
     pub start_year: Option<i64>,
     pub end_year: Option<i64>,
