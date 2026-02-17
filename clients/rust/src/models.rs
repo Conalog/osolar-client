@@ -55,21 +55,24 @@ pub struct PlantGeoJsonResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlantLinkRequest {
+pub struct PlantConnectionRequest {
     pub plant_uuid: String,
-    pub link_id: Option<String>,
+    #[serde(rename = "link_id")]
+    pub connection_id: Option<String>,
     pub remark: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlantLinkResponse {
-    pub link_id: String,
+pub struct PlantConnectionResponse {
+    #[serde(rename = "link_id")]
+    pub connection_id: String,
     pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PlantLinkListResponse {
-    pub link_id: String,
+pub struct PlantConnectionListResponse {
+    #[serde(rename = "link_id")]
+    pub connection_id: String,
     pub plant_name: String,
     pub plant_address: Option<String>,
     pub remark: Option<String>,
@@ -78,7 +81,8 @@ pub struct PlantLinkListResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlantInfoResponse {
-    pub link_id: String,
+    #[serde(rename = "link_id")]
+    pub connection_id: String,
     pub plant_name: String,
     pub plant_address: String,
     pub plant_capacity: String,
@@ -141,7 +145,8 @@ pub struct TaskDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlantOverviewResponse {
-    pub link_id: String,
+    #[serde(rename = "link_id")]
+    pub connection_id: String,
     pub plant_name: String,
     pub billing_summary: Vec<BillingAmountResponse>,
     pub recent_tasks: Vec<TaskDetail>,

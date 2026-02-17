@@ -1,6 +1,6 @@
 # osolar-client (Rust)
 
-OSOLAR-LINK Open API용 수동 구현 Rust SDK입니다.
+OSOLAR Open API용 수동 구현 Rust SDK입니다.
 
 ## 무엇을 제공하나요?
 
@@ -38,14 +38,14 @@ export OSOLAR_API_KEY="..."
 ## 빠른 시작
 
 ```rust
-use osolar_client::OsolarLinkClient;
+use osolar_client::OsolarClient;
 
 fn main() -> Result<(), osolar_client::ApiError> {
     let api_key = std::env::var("OSOLAR_API_KEY").expect("OSOLAR_API_KEY is required");
-    let client = OsolarLinkClient::new(api_key);
+    let client = OsolarClient::new(api_key);
 
-    let linked = client.list_linked_plants()?;
-    println!("{:?}", linked.data);
+    let connected = client.list_connected_plants()?;
+    println!("{:?}", connected.data);
     Ok(())
 }
 ```
@@ -53,32 +53,32 @@ fn main() -> Result<(), osolar_client::ApiError> {
 ## 자주 쓰는 메서드
 
 - `search_plants(SearchPlantsParams)`: 발전소 검색
-- `link_plant(&PlantLinkRequest)`: 발전소 링크 생성 시도
-- `list_linked_plants()`: 내 링크 목록 조회
-- `get_plant_info(link_id)`: 발전소 기본 정보
-- `get_plant_contract(link_id)`: 계약 정보
-- `get_plant_documents(link_id)`: 문서 목록
-- `get_plant_overview(link_id)`: 발전소 요약 정보
-- `get_monthly_generation(link_id, MonthlyGenerationParams)`: 월별 발전량
-- `get_monthly_billing(link_id, MonthlyBillingParams)`: 월별 청구량
+- `connect_plant(&PlantConnectionRequest)`: 발전소 연결 생성 시도
+- `list_connected_plants()`: 내 연결 목록 조회
+- `get_plant_info(connection_id)`: 발전소 기본 정보
+- `get_plant_contract(connection_id)`: 계약 정보
+- `get_plant_documents(connection_id)`: 문서 목록
+- `get_plant_overview(connection_id)`: 발전소 요약 정보
+- `get_monthly_generation(connection_id, MonthlyGenerationParams)`: 월별 발전량
+- `get_monthly_billing(connection_id, MonthlyBillingParams)`: 월별 청구량
 
-## 실전 예시 (링크 1건 기준 조회 흐름)
+## 실전 예시 (연결 1건 기준 조회 흐름)
 
 ```rust
-use osolar_client::OsolarLinkClient;
+use osolar_client::OsolarClient;
 
 fn main() -> Result<(), osolar_client::ApiError> {
     let api_key = std::env::var("OSOLAR_API_KEY").expect("OSOLAR_API_KEY is required");
-    let client = OsolarLinkClient::new(api_key);
+    let client = OsolarClient::new(api_key);
 
-    let links = client.list_linked_plants()?;
-    let Some(first) = links.data.as_ref().and_then(|items| items.first()) else {
-        println!("No linked plants");
+    let connections = client.list_connected_plants()?;
+    let Some(first) = connections.data.as_ref().and_then(|items| items.first()) else {
+        println!("No connected plants");
         return Ok(());
     };
 
-    let info = client.get_plant_info(&first.link_id)?;
-    let overview = client.get_plant_overview(&first.link_id)?;
+    let info = client.get_plant_info(&first.connection_id)?;
+    let overview = client.get_plant_overview(&first.connection_id)?;
 
     println!("{:?}", info.data);
     println!("{:?}", overview.data);
