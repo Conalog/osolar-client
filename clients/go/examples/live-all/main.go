@@ -55,8 +55,9 @@ func main() {
 				}
 				if (*linked.Data)[0].PlantAddress != nil && *(*linked.Data)[0].PlantAddress != "" {
 					addr := *(*linked.Data)[0].PlantAddress
-					if len(addr) > 12 {
-						searchKeyword = addr[:12]
+					runes := []rune(addr)
+					if len(runes) > 12 {
+						searchKeyword = string(runes[:12])
 					} else {
 						searchKeyword = addr
 					}
