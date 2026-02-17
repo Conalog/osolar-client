@@ -1,4 +1,4 @@
-# @osolar-sdk/osolar-link-client
+# @osolar-sdk/osolar-client
 
 OSOLAR-LINK Open API용 수동 구현 TypeScript SDK입니다.
 
@@ -39,7 +39,7 @@ cd /absolute/path/to/osolar-sdk/clients/ts
 npm link
 
 cd /absolute/path/to/your-project
-npm link @osolar-sdk/osolar-link-client
+npm link @osolar-sdk/osolar-client
 ```
 
 ## 환경 변수
@@ -51,7 +51,7 @@ export OSOLAR_API_KEY="..."
 ## 빠른 시작
 
 ```ts
-import { OsolarLinkClient } from "@osolar-sdk/osolar-link-client";
+import { OsolarLinkClient } from "@osolar-sdk/osolar-client";
 
 async function main() {
   const client = new OsolarLinkClient({
@@ -81,7 +81,7 @@ main().catch(console.error);
 ## 실전 예시 (링크 1건 기준 조회 흐름)
 
 ```ts
-import { ApiError, OsolarLinkClient } from "@osolar-sdk/osolar-link-client";
+import { ApiError, OsolarLinkClient } from "@osolar-sdk/osolar-client";
 
 async function main() {
   const client = new OsolarLinkClient({ apiKey: process.env.OSOLAR_API_KEY! });
