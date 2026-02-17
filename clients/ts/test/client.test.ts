@@ -2,6 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError, OsolarLinkClient } from "../src/client.js";
 
 describe("OsolarLinkClient", () => {
+  it("throws when apiKey is empty", () => {
+    expect(
+      () =>
+        new OsolarLinkClient({
+          apiKey: "   ",
+        }),
+    ).toThrow("apiKey must be a non-empty string");
+  });
+
   it("sends x-api-key header and serializes query parameters", async () => {
     const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
       const url = String(input);
@@ -26,6 +35,34 @@ describe("OsolarLinkClient", () => {
     const response = await client.searchPlants({ q: "foo", field: "address", distanceKm: 2 });
     expect(response.success).toBe(true);
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("throws when searchPlants q is empty", async () => {
+    const fetchMock = vi.fn();
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(client.searchPlants({ q: " ", field: "address" })).rejects.toThrow(
+      "q must be a non-empty string",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws when searchPlants field is empty", async () => {
+    const fetchMock = vi.fn();
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(client.searchPlants({ q: "foo", field: " " })).rejects.toThrow(
+      "field must be a non-empty string",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("throws ApiError on non-2xx", async () => {
@@ -101,6 +138,34 @@ describe("OsolarLinkClient", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("throws when linkPlant plant_uuid is empty", async () => {
+    const fetchMock = vi.fn();
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(client.linkPlant({ plant_uuid: " ", remark: "RTU link" })).rejects.toThrow(
+      "plant_uuid must be a non-empty string",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws when linkPlant remark is empty", async () => {
+    const fetchMock = vi.fn();
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(client.linkPlant({ plant_uuid: "plant-1", remark: " " })).rejects.toThrow(
+      "remark must be a non-empty string",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("encodes linkId path segment for getPlantOverview", async () => {
     const fetchMock = vi.fn(async (input: URL | RequestInfo) => {
       expect(String(input)).toContain("/v1/links/id%2Fwith%20space/overview");
@@ -138,6 +203,18 @@ describe("OsolarLinkClient", () => {
 
     await client.getPlantInfo("id/with space");
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("throws when linkId is empty", async () => {
+    const fetchMock = vi.fn();
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(client.getPlantInfo("  ")).rejects.toThrow("linkId must be a non-empty string");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("calls contract endpoint for getPlantContract", async () => {
@@ -302,5 +379,39 @@ describe("OsolarLinkClient", () => {
     });
 
     await expect(client.listLinkedPlants()).rejects.toThrow("Expected JSON object response");
+  });
+
+  it("throws when successful response JSON root is an array", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response("[]", {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(client.listLinkedPlants()).rejects.toThrow("Expected JSON object response");
+  });
+
+  it("throws when ApiResponse envelope is missing success flag", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(client.listLinkedPlants()).rejects.toThrow("Expected ApiResponse envelope with boolean success");
   });
 });

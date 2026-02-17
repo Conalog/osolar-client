@@ -98,7 +98,7 @@ async function main() {
     const overview = await client.getPlantOverview(first.link_id);
 
     console.log(info.data?.plant_name);
-    console.log(overview.data?.contract_status);
+    console.log(overview.data?.billing_summary?.[0]);
   } catch (error) {
     if (error instanceof ApiError) {
       console.error(error.status, error.responseBody);
