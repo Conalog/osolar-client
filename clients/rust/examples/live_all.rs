@@ -1,9 +1,9 @@
-use osolar_link_client::ApiError;
-use osolar_link_client::OsolarLinkClient;
 use osolar_link_client::models::{
     MonthlyBillingParams, MonthlyGenerationParams, PlantLinkRequest, SearchPlantsParams,
 };
-use serde_json::{Map, Value, json};
+use osolar_link_client::ApiError;
+use osolar_link_client::OsolarLinkClient;
+use serde_json::{json, Map, Value};
 
 fn main() {
     let api_key = std::env::var("OSOLAR_API_KEY").unwrap_or_else(|_| {
