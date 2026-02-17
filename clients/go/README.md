@@ -46,11 +46,11 @@ import (
 	"fmt"
 	"os"
 
-	osolarlink "github.com/conalog/osolar-client/clients/go"
+	osolar "github.com/conalog/osolar-client/clients/go"
 )
 
 func main() {
-	client := osolarlink.NewClient(os.Getenv("OSOLAR_API_KEY"), "", nil)
+	client := osolar.NewClient(os.Getenv("OSOLAR_API_KEY"), "", nil)
 
 	linked, err := client.ListLinkedPlants(context.Background())
 	if err != nil {
@@ -77,7 +77,7 @@ func main() {
 
 ```go
 ctx := context.Background()
-client := osolarlink.NewClient(os.Getenv("OSOLAR_API_KEY"), "", nil)
+client := osolar.NewClient(os.Getenv("OSOLAR_API_KEY"), "", nil)
 
 links, err := client.ListLinkedPlants(ctx)
 if err != nil {
