@@ -1,0 +1,25 @@
+# OS generated
+.DS_Store
+
+# Node / TypeScript
+node_modules/
+clients/ts/node_modules/
+clients/ts/dist/
+clients/ts/coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+clients/python/.pytest_cache/
+
+# Go
+clients/go/coverage.out
+
+# Rust
+clients/rust/target/
+Cargo.lock
+
+# Misc
+.env
