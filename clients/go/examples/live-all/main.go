@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	osolarlink "github.com/conalog/osolar-client/clients/go"
+	"github.com/conalog/osolar-client/clients/go"
 )
 
 type routeResult struct {
@@ -33,7 +33,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	client := osolarlink.NewClient(apiKey, "", nil)
+	client := osolar.NewClient(apiKey, "", nil)
 	results := map[string]routeResult{}
 
 	var linkID string
@@ -68,7 +68,7 @@ func main() {
 	}
 
 	distance := 2.0
-	search, err := client.SearchPlants(ctx, osolarlink.SearchPlantsParams{Q: searchKeyword, Field: "address", DistanceKM: &distance})
+	search, err := client.SearchPlants(ctx, osolar.SearchPlantsParams{Q: searchKeyword, Field: "address", DistanceKM: &distance})
 	if err != nil {
 		results["GET /v1/search"] = routeResult{OK: false, Error: err.Error()}
 	} else {
@@ -84,10 +84,11 @@ func main() {
 
 	if plantUUIDForLink == "" {
 		plantUUIDForLink = "not-a-valid-uuid"
+		fmt.Fprintln(os.Stderr, "No valid plant UUID found; using invalid UUID to exercise expected error-path for POST /v1/links")
 	}
-	_, err = client.LinkPlant(ctx, osolarlink.PlantLinkRequest{PlantUUID: plantUUIDForLink, Remark: "sdk live-all route smoke test"})
+	_, err = client.LinkPlant(ctx, osolar.PlantLinkRequest{PlantUUID: plantUUIDForLink, Remark: "sdk live-all route smoke test"})
 	if err != nil {
-		if apiErr, ok := err.(*osolarlink.APIError); ok {
+		if apiErr, ok := err.(*osolar.APIError); ok {
 			results["POST /v1/links"] = routeResult{OK: apiErr.StatusCode >= 400, Status: apiErr.StatusCode, Note: "non-2xx is acceptable for live route smoke"}
 		} else {
 			results["POST /v1/links"] = routeResult{OK: false, Error: err.Error()}
@@ -105,11 +106,11 @@ func main() {
 		{"GET /v1/links/{link_id}/documents", func() error { _, e := client.GetPlantDocuments(ctx, linkID); return e }},
 		{"GET /v1/links/{link_id}/overview", func() error { _, e := client.GetPlantOverview(ctx, linkID); return e }},
 		{"GET /v1/links/{link_id}/generation/monthly", func() error {
-			_, e := client.GetMonthlyGeneration(ctx, linkID, osolarlink.MonthlyGenerationParams{})
+			_, e := client.GetMonthlyGeneration(ctx, linkID, osolar.MonthlyGenerationParams{})
 			return e
 		}},
 		{"GET /v1/links/{link_id}/billing/monthly", func() error {
-			_, e := client.GetMonthlyBilling(ctx, linkID, osolarlink.MonthlyBillingParams{})
+			_, e := client.GetMonthlyBilling(ctx, linkID, osolar.MonthlyBillingParams{})
 			return e
 		}},
 	}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	osolarlink "github.com/conalog/osolar-client/clients/go"
+	"github.com/conalog/osolar-client/clients/go"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := osolarlink.NewClient(apiKey, "", nil)
+	client := osolar.NewClient(apiKey, "", nil)
 	resp, err := client.ListLinkedPlants(context.Background())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Live smoke test failed: %v\n", err)

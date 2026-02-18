@@ -1,4 +1,4 @@
-package osolarlink
+package osolar
 
 type ApiResponse[T any] struct {
 	Success bool    `json:"success"`

@@ -1,4 +1,4 @@
-package osolarlink
+package osolar
 
 import (
 	"bytes"
