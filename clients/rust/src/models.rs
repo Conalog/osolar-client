@@ -57,6 +57,7 @@ pub struct PlantGeoJsonResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlantConnectionRequest {
     pub plant_uuid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "link_id")]
     pub connection_id: Option<String>,
     pub remark: String,
@@ -85,7 +86,7 @@ pub struct PlantInfoResponse {
     pub connection_id: String,
     pub plant_name: String,
     pub plant_address: String,
-    pub plant_capacity: String,
+    pub plant_capacity: CapacityValue,
     pub plant_certified: bool,
     pub plant_geometry: GeoPoint,
     pub plant_owner: PlantOwner,

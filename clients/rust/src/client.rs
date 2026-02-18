@@ -132,6 +132,7 @@ impl OsolarClient {
     ) -> Result<ApiResponse<Vec<GenerationAmountResponse>>, ApiError> {
         let mut query: Vec<(&str, String)> = vec![];
         if let Some(start_year) = params.start_year {
+            // OpenAPI contract uses snake_case for generation filters.
             query.push(("start_year", start_year.to_string()));
         }
         if let Some(end_year) = params.end_year {
@@ -157,6 +158,7 @@ impl OsolarClient {
     ) -> Result<ApiResponse<Vec<BillingAmountResponse>>, ApiError> {
         let mut query: Vec<(&str, String)> = vec![];
         if let Some(start_year) = params.start_year {
+            // OpenAPI contract uses camelCase for billing filters.
             query.push(("startYear", start_year.to_string()));
         }
         if let Some(end_year) = params.end_year {
@@ -203,16 +205,19 @@ impl OsolarClient {
 
         let response = request.send()?;
         let status = response.status();
-        let raw_body = response.text()?;
+        let raw_body = response.bytes()?;
 
         if !status.is_success() {
-            let body = serde_json::from_str::<Value>(&raw_body).unwrap_or(Value::String(raw_body));
+            let body = match serde_json::from_slice::<Value>(&raw_body) {
+                Ok(value) => value,
+                Err(_) => Value::String(String::from_utf8_lossy(&raw_body).into_owned()),
+            };
             return Err(ApiError::Http {
                 status: status.as_u16(),
                 body,
             });
         }
 
-        Ok(serde_json::from_str::<T>(&raw_body)?)
+        Ok(serde_json::from_slice::<T>(&raw_body)?)
     }
 }
