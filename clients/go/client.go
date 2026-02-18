@@ -4,19 +4,27 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strings"
+	"time"
 )
 
 const defaultBaseURL = "https://openapi.osolar.io"
+const defaultHTTPTimeout = 30 * time.Second
+const maxResponseBodyBytes = 2 << 20
+const maxAPIErrorBodyLogBytes = 8 << 10
 
 type Client struct {
 	apiKey     string
 	baseURL    string
 	httpClient *http.Client
+	initErr    error
 }
 
 type APIError struct {
@@ -26,21 +34,37 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
-	return fmt.Sprintf("osolar api error %d %s: %s", e.StatusCode, e.Status, e.Body)
+	if len(e.Body) <= maxAPIErrorBodyLogBytes {
+		return fmt.Sprintf("osolar api error %d %s: %s", e.StatusCode, e.Status, e.Body)
+	}
+
+	return fmt.Sprintf(
+		"osolar api error %d %s: %s...(truncated, total %d bytes)",
+		e.StatusCode,
+		e.Status,
+		e.Body[:maxAPIErrorBodyLogBytes],
+		len(e.Body),
+	)
 }
 
 func NewClient(apiKey string, baseURL string, httpClient *http.Client) *Client {
 	if baseURL == "" {
 		baseURL = defaultBaseURL
 	}
+	baseURL = trimTrailingSlash(baseURL)
+	initErr := validateBaseURL(baseURL)
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		httpClient = &http.Client{Timeout: defaultHTTPTimeout}
+	} else {
+		httpClient = cloneHTTPClient(httpClient)
 	}
+	httpClient.CheckRedirect = composeRedirectPolicy(httpClient.CheckRedirect)
 
 	return &Client{
 		apiKey:     apiKey,
-		baseURL:    trimTrailingSlash(baseURL),
+		baseURL:    baseURL,
 		httpClient: httpClient,
+		initErr:    initErr,
 	}
 }
 
@@ -106,6 +130,10 @@ func (c *Client) GetMonthlyBilling(ctx context.Context, linkID string, params Mo
 }
 
 func doJSON[T any](ctx context.Context, c *Client, method string, path string, query url.Values, body any) (*T, error) {
+	if c.initErr != nil {
+		return nil, c.initErr
+	}
+
 	fullURL := c.baseURL + path
 	if len(query) > 0 {
 		fullURL += "?" + query.Encode()
@@ -135,13 +163,21 @@ func doJSON[T any](ctx context.Context, c *Client, method string, path string, q
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodyBytes+1))
 	if err != nil {
 		return nil, err
+	}
+	if len(respBody) > maxResponseBodyBytes {
+		return nil, fmt.Errorf("osolar response body exceeds %d bytes", maxResponseBodyBytes)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, &APIError{StatusCode: resp.StatusCode, Status: resp.Status, Body: respBody}
+	}
+	if len(respBody) == 0 || resp.StatusCode == http.StatusNoContent {
+		out := new(T)
+		markSuccessOnEmptyBody(out)
+		return out, nil
 	}
 
 	out := new(T)
@@ -153,4 +189,99 @@ func doJSON[T any](ctx context.Context, c *Client, method string, path string, q
 
 func trimTrailingSlash(baseURL string) string {
 	return strings.TrimRight(baseURL, "/")
+}
+
+func validateBaseURL(baseURL string) error {
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("invalid base URL: %w", err)
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return errors.New("invalid base URL: scheme and host are required")
+	}
+	if parsed.Scheme == "https" {
+		return nil
+	}
+	if parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname()) {
+		return nil
+	}
+	return fmt.Errorf("insecure base URL scheme %q: use https (http allowed only for localhost)", parsed.Scheme)
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func cloneHTTPClient(httpClient *http.Client) *http.Client {
+	cloned := *httpClient
+	return &cloned
+}
+
+func composeRedirectPolicy(userPolicy func(req *http.Request, via []*http.Request) error) func(req *http.Request, via []*http.Request) error {
+	return func(req *http.Request, via []*http.Request) error {
+		if err := rejectUnsafeRedirect(req, via); err != nil {
+			return err
+		}
+		if userPolicy != nil {
+			return userPolicy(req, via)
+		}
+		return nil
+	}
+}
+
+func rejectUnsafeRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) == 0 {
+		return nil
+	}
+
+	firstReqURL := via[0].URL
+	if !sameHostPort(req.URL, firstReqURL) {
+		return errors.New("refusing cross-host redirect for authenticated request")
+	}
+	if !strings.EqualFold(req.URL.Scheme, firstReqURL.Scheme) {
+		return errors.New("refusing redirect with scheme change for authenticated request")
+	}
+	if strings.EqualFold(firstReqURL.Scheme, "https") && !strings.EqualFold(req.URL.Scheme, "https") {
+		return errors.New("refusing https downgrade redirect for authenticated request")
+	}
+
+	return nil
+}
+
+func sameHostPort(a *url.URL, b *url.URL) bool {
+	return strings.EqualFold(a.Hostname(), b.Hostname()) && normalizedPort(a) == normalizedPort(b)
+}
+
+func normalizedPort(u *url.URL) string {
+	if port := u.Port(); port != "" {
+		return port
+	}
+	if strings.EqualFold(u.Scheme, "https") {
+		return "443"
+	}
+	if strings.EqualFold(u.Scheme, "http") {
+		return "80"
+	}
+	return ""
+}
+
+func markSuccessOnEmptyBody[T any](out *T) {
+	value := reflect.ValueOf(out)
+	if value.Kind() != reflect.Ptr || value.IsNil() {
+		return
+	}
+
+	structValue := value.Elem()
+	if structValue.Kind() != reflect.Struct {
+		return
+	}
+
+	successField := structValue.FieldByName("Success")
+	if successField.IsValid() && successField.CanSet() && successField.Kind() == reflect.Bool {
+		successField.SetBool(true)
+	}
 }
