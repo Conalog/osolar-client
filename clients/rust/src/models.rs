@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiResponse<T> {
@@ -94,6 +94,7 @@ pub struct PlantInfoResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecFixedContractInfo {
+    #[serde(default)]
     pub ess: bool,
     pub target: String,
     pub price_type: Option<String>,
@@ -103,10 +104,36 @@ pub struct RecFixedContractInfo {
     pub contract_years: Option<i64>,
 }
 
+fn deserialize_rec_contracts<'de, D>(
+    deserializer: D,
+) -> Result<Vec<RecFixedContractInfo>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum RecContractsWire {
+        Many(Vec<RecFixedContractInfo>),
+        One(RecFixedContractInfo),
+    }
+
+    let value = Option::<RecContractsWire>::deserialize(deserializer)?;
+    Ok(match value {
+        Some(RecContractsWire::Many(items)) => items,
+        Some(RecContractsWire::One(item)) => vec![item],
+        None => Vec::new(),
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlantContractResponse {
     pub ppa_type: String,
     pub rec_trade_type: String,
+    #[serde(
+        default,
+        alias = "rec_fixed_contract",
+        deserialize_with = "deserialize_rec_contracts"
+    )]
     pub rec_contracts: Vec<RecFixedContractInfo>,
 }
 
