@@ -38,11 +38,14 @@ def main() -> int:
         if isinstance(linked_data, list) and linked_data and isinstance(linked_data[0], dict):
             first_link = linked_data[0]
             link_id = first_link.get("link_id")
-            if isinstance(link_id, str) and re.fullmatch(
-                r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}",
-                link_id,
-            ):
-                plant_uuid_for_link = link_id
+            if isinstance(link_id, str):
+                if re.fullmatch(
+                    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}",
+                    link_id,
+                ):
+                    plant_uuid_for_link = link_id
+            else:
+                link_id = None
             address = first_link.get("plant_address")
             if isinstance(address, str) and address:
                 search_keyword = address[:12]
