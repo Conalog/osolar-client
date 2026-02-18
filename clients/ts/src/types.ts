@@ -91,7 +91,7 @@ export interface DocumentResponse {
 export interface BillingAmountResponse {
   billing_month: string;
   smp_billing_amount: number;
-  rec_billing_amount: number;
+  rec_billing_amount: number | null;
 }
 
 export interface GenerationAmountResponse {
@@ -121,9 +121,11 @@ export interface PlantOverviewResponse {
 
 export interface SearchPlantsParams {
   q: string;
-  field: string;
+  field: SearchPlantsField;
   distanceKm?: number;
 }
+
+export type SearchPlantsField = "business_number" | "address";
 
 export interface MonthlyGenerationParams {
   startYear?: number;

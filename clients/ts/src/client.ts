@@ -12,6 +12,7 @@ import {
   PlantLinkRequest,
   PlantLinkResponse,
   PlantOverviewResponse,
+  RecFixedContractInfo,
   SearchPlantsParams,
 } from "./types.js";
 
@@ -78,10 +79,11 @@ export class OsolarLinkClient {
 
   async getPlantContract(linkId: string): Promise<ApiResponse<PlantContractResponse>> {
     const validatedLinkId = assertNonEmptyString(linkId, "linkId");
-    return this.request<ApiResponse<PlantContractResponse>>(
+    const response = await this.request<ApiResponse<PlantContractResponse | LegacyPlantContractResponse>>(
       "GET",
       `/v1/links/${encodeURIComponent(validatedLinkId)}/contract`,
     );
+    return normalizePlantContractResponse(response);
   }
 
   async getPlantDocuments(linkId: string): Promise<ApiResponse<DocumentResponse[]>> {
@@ -213,6 +215,54 @@ export class OsolarLinkClient {
       );
     }
   }
+}
+
+type LegacyPlantContractResponse = Omit<PlantContractResponse, "rec_contracts"> & {
+  rec_contracts?: RecFixedContractInfo[] | null;
+  rec_fixed_contract?: RecFixedContractInfo | RecFixedContractInfo[] | null;
+};
+
+function normalizePlantContractResponse(
+  response: ApiResponse<PlantContractResponse | LegacyPlantContractResponse>,
+): ApiResponse<PlantContractResponse> {
+  const rawData = response.data;
+  if (rawData === null || rawData === undefined || typeof rawData !== "object" || Array.isArray(rawData)) {
+    return response as ApiResponse<PlantContractResponse>;
+  }
+
+  const data = rawData as LegacyPlantContractResponse;
+  if (typeof data.ppa_type !== "string" || typeof data.rec_trade_type !== "string") {
+    return response as ApiResponse<PlantContractResponse>;
+  }
+
+  return {
+    ...response,
+    data: {
+      ppa_type: data.ppa_type,
+      rec_trade_type: data.rec_trade_type,
+      rec_contracts: normalizeRecContracts(data),
+    },
+  };
+}
+
+function normalizeRecContracts(data: LegacyPlantContractResponse): RecFixedContractInfo[] {
+  if (Array.isArray(data.rec_contracts)) {
+    return data.rec_contracts.map(withDefaultEss);
+  }
+  if (Array.isArray(data.rec_fixed_contract)) {
+    return data.rec_fixed_contract.map(withDefaultEss);
+  }
+  if (data.rec_fixed_contract && typeof data.rec_fixed_contract === "object") {
+    return [withDefaultEss(data.rec_fixed_contract)];
+  }
+  return [];
+}
+
+function withDefaultEss(contract: RecFixedContractInfo): RecFixedContractInfo {
+  return {
+    ...contract,
+    ess: typeof contract.ess === "boolean" ? contract.ess : false,
+  };
 }
 
 function parseResponseBody(text: string):
