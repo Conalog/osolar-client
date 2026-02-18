@@ -1,4 +1,4 @@
-# osolar-client (Python)
+# osolar_client (Python)
 
 OSOLAR-LINK Open API용 수동 구현 Python SDK입니다.
 
@@ -23,15 +23,15 @@ pip install -e '.[dev]'
 `pip`은 Git 저장소의 하위 폴더를 직접 지정할 수 있습니다.
 
 ```bash
-pip install "osolar-client @ git+https://github.com/Conalog/osolar-client.git@main#subdirectory=clients/python"
+pip install "osolar_client @ git+https://github.com/Conalog/osolar-client.git@main#subdirectory=clients/python"
 ```
 
 브랜치 대신 태그/커밋 SHA를 써도 됩니다.
 
 ```bash
-pip install "osolar-client @ git+https://github.com/Conalog/osolar-client.git@v0.1.0#subdirectory=clients/python"
+pip install "osolar_client @ git+https://github.com/Conalog/osolar-client.git@v0.1.0#subdirectory=clients/python"
 # 또는
-pip install "osolar-client @ git+https://github.com/Conalog/osolar-client.git@<commit-sha>#subdirectory=clients/python"
+pip install "osolar_client @ git+https://github.com/Conalog/osolar-client.git@<commit-sha>#subdirectory=clients/python"
 ```
 
 ## 환경 변수
@@ -44,7 +44,7 @@ export OSOLAR_API_KEY="..."
 
 ```python
 import os
-from osolar_link_client import OsolarLinkClient
+from osolar_client import OsolarLinkClient
 
 with OsolarLinkClient(api_key=os.environ["OSOLAR_API_KEY"]) as client:
     linked = client.list_linked_plants()
@@ -54,7 +54,7 @@ with OsolarLinkClient(api_key=os.environ["OSOLAR_API_KEY"]) as client:
 ## 자주 쓰는 메서드
 
 - `search_plants(q, field, distance_km=None)`: 발전소 검색
-- `link_plant(body)`: 발전소 링크 생성 시도
+- `link_plant(plant_uuid=..., remark=..., link_id=None)`: 발전소 링크 생성 시도
 - `list_linked_plants()`: 내 링크 목록 조회
 - `get_plant_info(link_id)`: 발전소 기본 정보
 - `get_plant_contract(link_id)`: 계약 정보
@@ -63,11 +63,13 @@ with OsolarLinkClient(api_key=os.environ["OSOLAR_API_KEY"]) as client:
 - `get_monthly_generation(link_id, start_year=None, end_year=None)`: 월별 발전량
 - `get_monthly_billing(link_id, start_year=None, end_year=None)`: 월별 청구량
 
+`link_plant`는 기존처럼 `body` 딕셔너리 입력도 지원합니다.
+
 ## 실전 예시 (링크 1건 기준 조회 흐름)
 
 ```python
 import os
-from osolar_link_client import ApiError, OsolarLinkClient
+from osolar_client import ApiError, OsolarLinkClient
 
 with OsolarLinkClient(api_key=os.environ["OSOLAR_API_KEY"]) as client:
     try:
@@ -81,7 +83,8 @@ with OsolarLinkClient(api_key=os.environ["OSOLAR_API_KEY"]) as client:
         overview = client.get_plant_overview(link_id)
 
         print(info.get("data", {}).get("plant_name"))
-        print(overview.get("data", {}).get("contract_status"))
+        recent_tasks = (overview.get("data") or {}).get("recent_tasks") or []
+        print(len(recent_tasks))
     except ApiError as err:
         print(err.status_code, err.response_body)
 ```
@@ -92,9 +95,15 @@ with OsolarLinkClient(api_key=os.environ["OSOLAR_API_KEY"]) as client:
 cd clients/python
 pytest
 
+# mutation test (macOS/Python 3.13 safe wrapper)
+python scripts/run_mutmut.py --max-children 1
+
 # 실제 API 간단 점검
 OSOLAR_API_KEY=... python examples/live_smoke.py
 
 # 전체 경로 점검
 OSOLAR_API_KEY=... python examples/live_all.py
 ```
+
+`scripts/run_mutmut.py`는 macOS + Python 3.13에서 발생하는
+fork 기반 `mutmut` 세그폴트(`setproctitle`, 시스템 프록시 조회) 우회를 포함합니다.

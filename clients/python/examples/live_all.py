@@ -6,7 +6,7 @@ import re
 import sys
 from typing import Any, Callable
 
-from osolar_link_client import ApiError, OsolarLinkClient
+from osolar_client import ApiError, OsolarLinkClient
 
 
 def main() -> int:
@@ -35,14 +35,15 @@ def main() -> int:
         linked = client.list_linked_plants()
         linked_data = linked.get("data") if isinstance(linked, dict) else None
         linked_count = len(linked_data) if isinstance(linked_data, list) else 0
-        if linked_count > 0 and isinstance(linked_data[0], dict):
-            link_id = linked_data[0].get("link_id")
+        if isinstance(linked_data, list) and linked_data and isinstance(linked_data[0], dict):
+            first_link = linked_data[0]
+            link_id = first_link.get("link_id")
             if isinstance(link_id, str) and re.fullmatch(
                 r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}",
                 link_id,
             ):
                 plant_uuid_for_link = link_id
-            address = linked_data[0].get("plant_address")
+            address = first_link.get("plant_address")
             if isinstance(address, str) and address:
                 search_keyword = address[:12]
         ok("GET /v1/links", linkedPlantCount=linked_count, sampleLinkId=link_id)
@@ -54,7 +55,7 @@ def main() -> int:
         data = search.get("data") if isinstance(search, dict) else None
         features = data.get("features") if isinstance(data, dict) else None
         feature_count = len(features) if isinstance(features, list) else 0
-        if not plant_uuid_for_link and feature_count > 0 and isinstance(features[0], dict):
+        if not plant_uuid_for_link and isinstance(features, list) and features and isinstance(features[0], dict):
             props = features[0].get("properties")
             if isinstance(props, dict) and isinstance(props.get("plant_uuid"), str):
                 plant_uuid_for_link = props["plant_uuid"]
@@ -79,7 +80,7 @@ def main() -> int:
     except Exception as err:  # noqa: BLE001
         fail("POST /v1/links", err)
 
-    guarded_routes: list[tuple[str, Callable[[], dict[str, Any]]]] = [
+    guarded_routes: list[tuple[str, Callable[[], Any]]] = [
         ("GET /v1/links/{link_id}", lambda: client.get_plant_info(link_id or "")),
         ("GET /v1/links/{link_id}/contract", lambda: client.get_plant_contract(link_id or "")),
         ("GET /v1/links/{link_id}/documents", lambda: client.get_plant_documents(link_id or "")),
