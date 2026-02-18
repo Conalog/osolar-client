@@ -6,21 +6,21 @@ use serde_json::Value;
 use crate::error::ApiError;
 use crate::models::{
     ApiResponse, BillingAmountResponse, DocumentResponse, GenerationAmountResponse,
-    MonthlyBillingParams, MonthlyGenerationParams, PlantContractResponse, PlantGeoJsonResponse,
-    PlantInfoResponse, PlantLinkListResponse, PlantLinkRequest, PlantLinkResponse,
-    PlantOverviewResponse, SearchPlantsParams,
+    MonthlyBillingParams, MonthlyGenerationParams, PlantConnectionListResponse,
+    PlantConnectionRequest, PlantConnectionResponse, PlantContractResponse, PlantGeoJsonResponse,
+    PlantInfoResponse, PlantOverviewResponse, SearchPlantsParams,
 };
 
 const DEFAULT_BASE_URL: &str = "https://openapi.osolar.io";
 
 #[derive(Debug, Clone)]
-pub struct OsolarLinkClient {
+pub struct OsolarClient {
     api_key: String,
     base_url: String,
     http_client: reqwest::blocking::Client,
 }
 
-impl OsolarLinkClient {
+impl OsolarClient {
     pub fn new(api_key: impl Into<String>) -> Self {
         Self {
             api_key: api_key.into(),
@@ -50,10 +50,10 @@ impl OsolarLinkClient {
         self.request(Method::GET, "/v1/search", Some(&query), Option::<&()>::None)
     }
 
-    pub fn link_plant(
+    pub fn connect_plant(
         &self,
-        body: &PlantLinkRequest,
-    ) -> Result<ApiResponse<PlantLinkResponse>, ApiError> {
+        body: &PlantConnectionRequest,
+    ) -> Result<ApiResponse<PlantConnectionResponse>, ApiError> {
         self.request(
             Method::POST,
             "/v1/links",
@@ -62,7 +62,9 @@ impl OsolarLinkClient {
         )
     }
 
-    pub fn list_linked_plants(&self) -> Result<ApiResponse<Vec<PlantLinkListResponse>>, ApiError> {
+    pub fn list_connected_plants(
+        &self,
+    ) -> Result<ApiResponse<Vec<PlantConnectionListResponse>>, ApiError> {
         self.request(
             Method::GET,
             "/v1/links",
@@ -73,9 +75,9 @@ impl OsolarLinkClient {
 
     pub fn get_plant_info(
         &self,
-        link_id: &str,
+        connection_id: &str,
     ) -> Result<ApiResponse<PlantInfoResponse>, ApiError> {
-        let path = format!("/v1/links/{}", urlencoding::encode(link_id));
+        let path = format!("/v1/links/{}", urlencoding::encode(connection_id));
         self.request(
             Method::GET,
             &path,
@@ -86,9 +88,9 @@ impl OsolarLinkClient {
 
     pub fn get_plant_contract(
         &self,
-        link_id: &str,
+        connection_id: &str,
     ) -> Result<ApiResponse<PlantContractResponse>, ApiError> {
-        let path = format!("/v1/links/{}/contract", urlencoding::encode(link_id));
+        let path = format!("/v1/links/{}/contract", urlencoding::encode(connection_id));
         self.request(
             Method::GET,
             &path,
@@ -99,9 +101,9 @@ impl OsolarLinkClient {
 
     pub fn get_plant_documents(
         &self,
-        link_id: &str,
+        connection_id: &str,
     ) -> Result<ApiResponse<Vec<DocumentResponse>>, ApiError> {
-        let path = format!("/v1/links/{}/documents", urlencoding::encode(link_id));
+        let path = format!("/v1/links/{}/documents", urlencoding::encode(connection_id));
         self.request(
             Method::GET,
             &path,
@@ -112,9 +114,9 @@ impl OsolarLinkClient {
 
     pub fn get_plant_overview(
         &self,
-        link_id: &str,
+        connection_id: &str,
     ) -> Result<ApiResponse<PlantOverviewResponse>, ApiError> {
-        let path = format!("/v1/links/{}/overview", urlencoding::encode(link_id));
+        let path = format!("/v1/links/{}/overview", urlencoding::encode(connection_id));
         self.request(
             Method::GET,
             &path,
@@ -125,11 +127,12 @@ impl OsolarLinkClient {
 
     pub fn get_monthly_generation(
         &self,
-        link_id: &str,
+        connection_id: &str,
         params: MonthlyGenerationParams,
     ) -> Result<ApiResponse<Vec<GenerationAmountResponse>>, ApiError> {
         let mut query: Vec<(&str, String)> = vec![];
         if let Some(start_year) = params.start_year {
+            // OpenAPI contract uses snake_case for generation filters.
             query.push(("start_year", start_year.to_string()));
         }
         if let Some(end_year) = params.end_year {
@@ -138,7 +141,7 @@ impl OsolarLinkClient {
 
         let path = format!(
             "/v1/links/{}/generation/monthly",
-            urlencoding::encode(link_id)
+            urlencoding::encode(connection_id)
         );
         let query_ref = if query.is_empty() {
             None
@@ -150,18 +153,22 @@ impl OsolarLinkClient {
 
     pub fn get_monthly_billing(
         &self,
-        link_id: &str,
+        connection_id: &str,
         params: MonthlyBillingParams,
     ) -> Result<ApiResponse<Vec<BillingAmountResponse>>, ApiError> {
         let mut query: Vec<(&str, String)> = vec![];
         if let Some(start_year) = params.start_year {
+            // OpenAPI contract uses camelCase for billing filters.
             query.push(("startYear", start_year.to_string()));
         }
         if let Some(end_year) = params.end_year {
             query.push(("endYear", end_year.to_string()));
         }
 
-        let path = format!("/v1/links/{}/billing/monthly", urlencoding::encode(link_id));
+        let path = format!(
+            "/v1/links/{}/billing/monthly",
+            urlencoding::encode(connection_id)
+        );
         let query_ref = if query.is_empty() {
             None
         } else {
@@ -198,17 +205,19 @@ impl OsolarLinkClient {
 
         let response = request.send()?;
         let status = response.status();
-        let raw_body = response.text()?;
+        let raw_body = response.bytes()?;
 
         if !status.is_success() {
-            let body = serde_json::from_str::<Value>(&raw_body)
-                .unwrap_or_else(|_| Value::String(raw_body));
+            let body = match serde_json::from_slice::<Value>(&raw_body) {
+                Ok(value) => value,
+                Err(_) => Value::String(String::from_utf8_lossy(&raw_body).into_owned()),
+            };
             return Err(ApiError::Http {
                 status: status.as_u16(),
                 body,
             });
         }
 
-        Ok(serde_json::from_str::<T>(&raw_body)?)
+        Ok(serde_json::from_slice::<T>(&raw_body)?)
     }
 }

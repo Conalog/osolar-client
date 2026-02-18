@@ -1,4 +1,4 @@
-use osolar_client::OsolarLinkClient;
+use osolar_client::OsolarClient;
 
 fn main() {
     let api_key = std::env::var("OSOLAR_API_KEY").unwrap_or_else(|_| {
@@ -6,13 +6,13 @@ fn main() {
         std::process::exit(1);
     });
 
-    let client = OsolarLinkClient::new(api_key);
+    let client = OsolarClient::new(api_key);
 
-    match client.list_linked_plants() {
+    match client.list_connected_plants() {
         Ok(response) => {
             let count = response.data.as_ref().map(std::vec::Vec::len).unwrap_or(0);
             println!(
-                "{{\"success\":{},\"linkedPlantCount\":{}}}",
+                "{{\"success\":{},\"connectedPlantCount\":{}}}",
                 response.success, count
             );
         }

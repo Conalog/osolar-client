@@ -1,8 +1,8 @@
 use osolar_client::models::{
-    MonthlyBillingParams, MonthlyGenerationParams, PlantLinkRequest, SearchPlantsParams,
+    MonthlyBillingParams, MonthlyGenerationParams, PlantConnectionRequest, SearchPlantsParams,
 };
 use osolar_client::ApiError;
-use osolar_client::OsolarLinkClient;
+use osolar_client::OsolarClient;
 use serde_json::{json, Map, Value};
 
 fn main() {
@@ -11,23 +11,20 @@ fn main() {
         std::process::exit(1);
     });
 
-    let client = OsolarLinkClient::new(api_key);
+    let client = OsolarClient::new(api_key);
     let mut results: Map<String, Value> = Map::new();
 
-    let mut link_id: Option<String> = None;
+    let mut connection_id: Option<String> = None;
     let mut search_keyword = "서울".to_string();
-    let mut plant_uuid_for_link: Option<String> = None;
+    let mut plant_uuid_for_connection: Option<String> = None;
 
-    match client.list_linked_plants() {
+    match client.list_connected_plants() {
         Ok(resp) => {
-            let mut linked_count = 0usize;
+            let mut connected_count = 0usize;
             if let Some(data) = &resp.data {
-                linked_count = data.len();
+                connected_count = data.len();
                 if let Some(first) = data.first() {
-                    link_id = Some(first.link_id.clone());
-                    if is_uuid(&first.link_id) {
-                        plant_uuid_for_link = Some(first.link_id.clone());
-                    }
+                    connection_id = Some(first.connection_id.clone());
                     if let Some(addr) = &first.plant_address {
                         if !addr.is_empty() {
                             search_keyword = addr.chars().take(12).collect();
@@ -36,13 +33,13 @@ fn main() {
                 }
             }
             results.insert(
-                "GET /v1/links".to_string(),
-                json!({"ok": true, "linkedPlantCount": linked_count, "sampleLinkId": link_id}),
+                "list_connections".to_string(),
+                json!({"ok": true, "connectedPlantCount": connected_count, "sampleConnectionId": connection_id}),
             );
         }
         Err(err) => {
             results.insert(
-                "GET /v1/links".to_string(),
+                "list_connections".to_string(),
                 json!({"ok": false, "error": err.to_string()}),
             );
         }
@@ -55,10 +52,10 @@ fn main() {
     }) {
         Ok(resp) => {
             let feature_count = resp.data.as_ref().map(|d| d.features.len()).unwrap_or(0);
-            if plant_uuid_for_link.is_none() {
+            if plant_uuid_for_connection.is_none() {
                 if let Some(data) = resp.data.as_ref() {
                     if let Some(first) = data.features.first() {
-                        plant_uuid_for_link = Some(first.properties.plant_uuid.clone());
+                        plant_uuid_for_connection = Some(first.properties.plant_uuid.clone());
                     }
                 }
             }
@@ -75,58 +72,58 @@ fn main() {
         }
     }
 
-    match client.link_plant(&PlantLinkRequest {
-        plant_uuid: plant_uuid_for_link.unwrap_or_else(|| "not-a-valid-uuid".to_string()),
-        link_id: None,
+    match client.connect_plant(&PlantConnectionRequest {
+        plant_uuid: plant_uuid_for_connection.unwrap_or_else(|| "not-a-valid-uuid".to_string()),
+        connection_id: None,
         remark: "sdk live-all route smoke test".to_string(),
     }) {
         Ok(_) => {
             results.insert(
-                "POST /v1/links".to_string(),
+                "create_connection".to_string(),
                 json!({"ok": true, "note": "unexpectedly succeeded"}),
             );
         }
         Err(ApiError::Http { status, .. }) => {
             results.insert(
-                "POST /v1/links".to_string(),
+                "create_connection".to_string(),
                 json!({"ok": status >= 400, "status": status, "note": "non-2xx is acceptable for live route smoke"}),
             );
         }
         Err(err) => {
             results.insert(
-                "POST /v1/links".to_string(),
+                "create_connection".to_string(),
                 json!({"ok": false, "error": err.to_string()}),
             );
         }
     }
 
     let routes = vec![
-        "GET /v1/links/{link_id}",
-        "GET /v1/links/{link_id}/contract",
-        "GET /v1/links/{link_id}/documents",
-        "GET /v1/links/{link_id}/overview",
-        "GET /v1/links/{link_id}/generation/monthly",
-        "GET /v1/links/{link_id}/billing/monthly",
+        "plant_info",
+        "plant_contract",
+        "plant_documents",
+        "plant_overview",
+        "monthly_generation",
+        "monthly_billing",
     ];
 
     for route in routes {
-        let Some(id) = &link_id else {
+        let Some(id) = &connection_id else {
             results.insert(
                 route.to_string(),
-                json!({"ok": false, "skipped": true, "reason": "no linked plant available"}),
+                json!({"ok": false, "skipped": true, "reason": "no connected plant available"}),
             );
             continue;
         };
 
         let result = match route {
-            "GET /v1/links/{link_id}" => client.get_plant_info(id).map(|_| ()),
-            "GET /v1/links/{link_id}/contract" => client.get_plant_contract(id).map(|_| ()),
-            "GET /v1/links/{link_id}/documents" => client.get_plant_documents(id).map(|_| ()),
-            "GET /v1/links/{link_id}/overview" => client.get_plant_overview(id).map(|_| ()),
-            "GET /v1/links/{link_id}/generation/monthly" => client
+            "plant_info" => client.get_plant_info(id).map(|_| ()),
+            "plant_contract" => client.get_plant_contract(id).map(|_| ()),
+            "plant_documents" => client.get_plant_documents(id).map(|_| ()),
+            "plant_overview" => client.get_plant_overview(id).map(|_| ()),
+            "monthly_generation" => client
                 .get_monthly_generation(id, MonthlyGenerationParams::default())
                 .map(|_| ()),
-            "GET /v1/links/{link_id}/billing/monthly" => client
+            "monthly_billing" => client
                 .get_monthly_billing(id, MonthlyBillingParams::default())
                 .map(|_| ()),
             _ => unreachable!(),
@@ -164,26 +161,4 @@ fn main() {
     if hard_fail {
         std::process::exit(1);
     }
-}
-
-fn is_uuid(value: &str) -> bool {
-    let bytes = value.as_bytes();
-    if bytes.len() != 36 {
-        return false;
-    }
-    for (idx, b) in bytes.iter().enumerate() {
-        match idx {
-            8 | 13 | 18 | 23 => {
-                if *b != b'-' {
-                    return false;
-                }
-            }
-            _ => {
-                if !(*b as char).is_ascii_hexdigit() {
-                    return false;
-                }
-            }
-        }
-    }
-    true
 }

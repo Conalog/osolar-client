@@ -2,7 +2,7 @@
 name = "osolar-client"
 version = "0.1.0"
 edition = "2021"
-description = "Handwritten Rust client for OSOLAR-LINK Open API"
+description = "Handwritten Rust client for OSOLAR Open API"
 license = "MIT"
 
 [dependencies]
