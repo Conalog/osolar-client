@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, cast, overload
+from types import TracebackType
+from typing import Any, Literal, overload
 from urllib.parse import quote
 
 import httpx
@@ -19,6 +20,10 @@ from .models import (
     SearchPlantsApiResponse,
 )
 
+SearchField = Literal["business_number", "address"]
+_ALLOWED_SEARCH_FIELDS = {"business_number", "address"}
+
+
 class OsolarLinkClient:
     def __init__(
         self,
@@ -27,22 +32,39 @@ class OsolarLinkClient:
         timeout: float = 30.0,
         http_client: httpx.Client | None = None,
     ):
+        """Create a synchronous client for the OSOLAR-LINK Open API."""
+        if not isinstance(api_key, str) or not api_key.strip():
+            raise ValueError("`api_key` must be a non-empty string.")
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
         self._owns_client = http_client is None
         self._http_client = http_client or httpx.Client(timeout=timeout)
 
     def close(self) -> None:
+        """Close the underlying http client if this client created it."""
         if self._owns_client:
             self._http_client.close()
 
     def __enter__(self) -> "OsolarLinkClient":
         return self
 
-    def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.close()
 
-    def search_plants(self, q: str, field: str, distance_km: float | None = None) -> SearchPlantsApiResponse:
+    def search_plants(
+        self,
+        q: str,
+        field: SearchField,
+        distance_km: float | None = None,
+    ) -> SearchPlantsApiResponse:
+        """Search plants by a text query and constrained search field."""
+        if field not in _ALLOWED_SEARCH_FIELDS:
+            raise ValueError("`field` must be one of: business_number, address.")
         query = {"q": q, "field": field, "distance_km": distance_km}
         return self._request("GET", "/v1/search", params=query)
 
@@ -67,10 +89,13 @@ class OsolarLinkClient:
         remark: str | None = None,
         link_id: str | None = None,
     ) -> LinkPlantApiResponse:
+        """Create a plant link request."""
         if body is not None:
             if plant_uuid is not None or remark is not None or link_id is not None:
                 raise ValueError("Use either `body` or keyword arguments, not both.")
-            payload = cast(dict[str, Any], body)
+            if not isinstance(body, dict) or "plant_uuid" not in body or "remark" not in body:
+                raise ValueError("`plant_uuid` and `remark` are required in `body`.")
+            payload = dict(body)
         else:
             if plant_uuid is None or remark is None:
                 raise ValueError("`plant_uuid` and `remark` are required when `body` is not provided.")
@@ -81,21 +106,26 @@ class OsolarLinkClient:
         return self._request("POST", "/v1/links", json=payload)
 
     def list_linked_plants(self) -> ListLinkedPlantsApiResponse:
+        """List plants linked to the current API key."""
         return self._request("GET", "/v1/links")
 
     def get_plant_info(self, link_id: str) -> PlantInfoApiResponse:
+        """Fetch the base information for a linked plant."""
         safe_link_id = quote(link_id, safe="")
         return self._request("GET", f"/v1/links/{safe_link_id}")
 
     def get_plant_contract(self, link_id: str) -> PlantContractApiResponse:
+        """Fetch contract information for a linked plant."""
         safe_link_id = quote(link_id, safe="")
         return self._request("GET", f"/v1/links/{safe_link_id}/contract")
 
     def get_plant_documents(self, link_id: str) -> PlantDocumentsApiResponse:
+        """Fetch available documents for a linked plant."""
         safe_link_id = quote(link_id, safe="")
         return self._request("GET", f"/v1/links/{safe_link_id}/documents")
 
     def get_plant_overview(self, link_id: str) -> PlantOverviewApiResponse:
+        """Fetch overview data for a linked plant."""
         safe_link_id = quote(link_id, safe="")
         return self._request("GET", f"/v1/links/{safe_link_id}/overview")
 
@@ -105,6 +135,7 @@ class OsolarLinkClient:
         start_year: int | None = None,
         end_year: int | None = None,
     ) -> MonthlyGenerationApiResponse:
+        """Fetch monthly generation data for a linked plant."""
         safe_link_id = quote(link_id, safe="")
         query = {"start_year": start_year, "end_year": end_year}
         return self._request(
@@ -119,6 +150,7 @@ class OsolarLinkClient:
         start_year: int | None = None,
         end_year: int | None = None,
     ) -> MonthlyBillingApiResponse:
+        """Fetch monthly billing data for a linked plant."""
         safe_link_id = quote(link_id, safe="")
         # OpenAPI spec uses camelCase for this endpoint.
         query = {"startYear": start_year, "endYear": end_year}

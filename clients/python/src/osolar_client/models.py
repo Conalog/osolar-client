@@ -5,7 +5,12 @@ from typing import Literal, TypedDict
 try:  # Python 3.11+
     from typing import NotRequired
 except ImportError:  # Python 3.10
-    from typing_extensions import NotRequired
+    try:
+        from typing_extensions import NotRequired
+    except ImportError as exc:  # pragma: no cover
+        raise ImportError(
+            "typing_extensions is required on Python 3.10 for NotRequired support."
+        ) from exc
 
 
 class ApiResponseBase(TypedDict):

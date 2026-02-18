@@ -1,4 +1,5 @@
 from .client import OsolarLinkClient
+from .client import SearchField
 from .exceptions import ApiError
 from .models import (
     ApiResponseBase,
@@ -59,6 +60,7 @@ __all__ = [
     "PlantOwner",
     "RecFixedContractInfo",
     "SearchPlantsApiResponse",
+    "SearchField",
     "TaskDetail",
     "TaskStatus",
     "TaskType",
