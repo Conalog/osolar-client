@@ -232,8 +232,124 @@ describe("OsolarLinkClient", () => {
       fetchFn: fetchMock as unknown as typeof fetch,
     });
 
-    await client.getPlantContract("link-1");
+    const response = await client.getPlantContract("link-1");
+    expect(response.data?.rec_contracts).toEqual([]);
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("normalizes legacy rec_fixed_contract object to rec_contracts array", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            ppa_type: "PPA",
+            rec_trade_type: "fixed",
+            rec_fixed_contract: {
+              target: "한수원",
+            },
+          },
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    const response = await client.getPlantContract("link-1");
+    expect(response.data?.rec_contracts).toEqual([{ ess: false, target: "한수원" }]);
+  });
+
+  it("normalizes missing contract list to empty array", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            ppa_type: "PPA",
+            rec_trade_type: "spot",
+          },
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    const response = await client.getPlantContract("link-1");
+    expect(response.data?.rec_contracts).toEqual([]);
+  });
+
+  it("normalizes legacy rec_fixed_contract array to rec_contracts", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            ppa_type: "PPA",
+            rec_trade_type: "fixed",
+            rec_fixed_contract: [
+              { target: "동서발전" },
+              { ess: true, target: "한수원" },
+            ],
+          },
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    const response = await client.getPlantContract("link-1");
+    expect(response.data?.rec_contracts).toEqual([
+      { ess: false, target: "동서발전" },
+      { ess: true, target: "한수원" },
+    ]);
+  });
+
+  it("returns null contract data as-is without throwing", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: null,
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    const response = await client.getPlantContract("link-1");
+    expect(response.data).toBeNull();
   });
 
   it("calls documents endpoint for getPlantDocuments", async () => {
@@ -301,6 +417,36 @@ describe("OsolarLinkClient", () => {
 
     await client.getMonthlyBilling("link-1", { startYear: 2023, endYear: 2024 });
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("preserves null rec_billing_amount values from billing response", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: [
+            {
+              billing_month: "2025-03",
+              smp_billing_amount: 100,
+              rec_billing_amount: null,
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    const response = await client.getMonthlyBilling("link-1");
+    expect(response.data?.[0]?.rec_billing_amount).toBeNull();
   });
 
   it("throws before request when generation startYear is greater than endYear", async () => {
