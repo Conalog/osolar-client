@@ -41,23 +41,30 @@ export class OsolarLinkClient {
   private readonly fetchFn: typeof fetch;
 
   constructor(config: OsolarLinkClientConfig) {
-    this.apiKey = config.apiKey;
+    this.apiKey = assertNonEmptyString(config.apiKey, "apiKey");
     this.baseUrl = (config.baseUrl ?? "https://openapi.osolar.io").replace(/\/$/, "");
     this.fetchFn = config.fetchFn ?? fetch;
   }
 
   async searchPlants(params: SearchPlantsParams): Promise<ApiResponse<PlantGeoJSONResponse>> {
+    const q = assertNonEmptyString(params.q, "q");
+    const field = assertNonEmptyString(params.field, "field");
     return this.request<ApiResponse<PlantGeoJSONResponse>>("GET", "/v1/search", {
       query: {
-        q: params.q,
-        field: params.field,
+        q,
+        field,
         distance_km: params.distanceKm,
       },
     });
   }
 
   async linkPlant(body: PlantLinkRequest): Promise<ApiResponse<PlantLinkResponse>> {
-    return this.request<ApiResponse<PlantLinkResponse>>("POST", "/v1/links", { body });
+    const normalizedBody: PlantLinkRequest = {
+      ...body,
+      plant_uuid: assertNonEmptyString(body.plant_uuid, "plant_uuid"),
+      remark: assertNonEmptyString(body.remark, "remark"),
+    };
+    return this.request<ApiResponse<PlantLinkResponse>>("POST", "/v1/links", { body: normalizedBody });
   }
 
   async listLinkedPlants(): Promise<ApiResponse<PlantLinkListResponse[]>> {
@@ -65,34 +72,43 @@ export class OsolarLinkClient {
   }
 
   async getPlantInfo(linkId: string): Promise<ApiResponse<PlantInfoResponse>> {
-    return this.request<ApiResponse<PlantInfoResponse>>("GET", `/v1/links/${encodeURIComponent(linkId)}`);
+    const validatedLinkId = assertNonEmptyString(linkId, "linkId");
+    return this.request<ApiResponse<PlantInfoResponse>>("GET", `/v1/links/${encodeURIComponent(validatedLinkId)}`);
   }
 
   async getPlantContract(linkId: string): Promise<ApiResponse<PlantContractResponse>> {
+    const validatedLinkId = assertNonEmptyString(linkId, "linkId");
     return this.request<ApiResponse<PlantContractResponse>>(
       "GET",
-      `/v1/links/${encodeURIComponent(linkId)}/contract`,
+      `/v1/links/${encodeURIComponent(validatedLinkId)}/contract`,
     );
   }
 
   async getPlantDocuments(linkId: string): Promise<ApiResponse<DocumentResponse[]>> {
+    const validatedLinkId = assertNonEmptyString(linkId, "linkId");
     return this.request<ApiResponse<DocumentResponse[]>>(
       "GET",
-      `/v1/links/${encodeURIComponent(linkId)}/documents`,
+      `/v1/links/${encodeURIComponent(validatedLinkId)}/documents`,
     );
   }
 
   async getPlantOverview(linkId: string): Promise<ApiResponse<PlantOverviewResponse>> {
-    return this.request<ApiResponse<PlantOverviewResponse>>("GET", `/v1/links/${encodeURIComponent(linkId)}/overview`);
+    const validatedLinkId = assertNonEmptyString(linkId, "linkId");
+    return this.request<ApiResponse<PlantOverviewResponse>>(
+      "GET",
+      `/v1/links/${encodeURIComponent(validatedLinkId)}/overview`,
+    );
   }
 
   async getMonthlyGeneration(
     linkId: string,
     params: MonthlyGenerationParams = {},
   ): Promise<ApiResponse<GenerationAmountResponse[]>> {
+    const validatedLinkId = assertNonEmptyString(linkId, "linkId");
+    this.validateYearRange(params, "getMonthlyGeneration");
     return this.request<ApiResponse<GenerationAmountResponse[]>>(
       "GET",
-      `/v1/links/${encodeURIComponent(linkId)}/generation/monthly`,
+      `/v1/links/${encodeURIComponent(validatedLinkId)}/generation/monthly`,
       {
         query: {
           start_year: params.startYear,
@@ -106,9 +122,11 @@ export class OsolarLinkClient {
     linkId: string,
     params: MonthlyBillingParams = {},
   ): Promise<ApiResponse<BillingAmountResponse[]>> {
+    const validatedLinkId = assertNonEmptyString(linkId, "linkId");
+    this.validateYearRange(params, "getMonthlyBilling");
     return this.request<ApiResponse<BillingAmountResponse[]>>(
       "GET",
-      `/v1/links/${encodeURIComponent(linkId)}/billing/monthly`,
+      `/v1/links/${encodeURIComponent(validatedLinkId)}/billing/monthly`,
       {
         query: {
           startYear: params.startYear,
@@ -152,20 +170,68 @@ export class OsolarLinkClient {
     });
 
     const text = await response.text();
-    const parsed = text.length > 0 ? safeParseJson(text) : null;
+    const parsed = parseResponseBody(text);
 
     if (!response.ok) {
-      throw new ApiError(response.status, response.statusText, parsed);
+      throw new ApiError(
+        response.status,
+        response.statusText,
+        parsed.kind === "invalid" ? parsed.rawText : parsed.value,
+      );
     }
 
-    return parsed as T;
+    if (parsed.kind === "empty") {
+      throw new TypeError("Expected JSON response body but received empty body");
+    }
+
+    if (parsed.kind === "invalid") {
+      throw new TypeError("Expected JSON response but received non-JSON body");
+    }
+
+    if (parsed.value === null || Array.isArray(parsed.value) || typeof parsed.value !== "object") {
+      throw new TypeError("Expected JSON object response");
+    }
+
+    if (!("success" in parsed.value) || typeof parsed.value.success !== "boolean") {
+      throw new TypeError("Expected ApiResponse envelope with boolean success");
+    }
+
+    return parsed.value as T;
+  }
+
+  private validateYearRange(
+    params: { startYear?: number; endYear?: number },
+    methodName: "getMonthlyGeneration" | "getMonthlyBilling",
+  ): void {
+    if (
+      params.startYear !== undefined &&
+      params.endYear !== undefined &&
+      params.startYear > params.endYear
+    ) {
+      throw new RangeError(
+        `${methodName}: startYear (${params.startYear}) must be less than or equal to endYear (${params.endYear})`,
+      );
+    }
   }
 }
 
-function safeParseJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
+function parseResponseBody(text: string):
+  | { kind: "empty"; value: null }
+  | { kind: "json"; value: unknown }
+  | { kind: "invalid"; rawText: string } {
+  if (text.length === 0) {
+    return { kind: "empty", value: null };
   }
+  try {
+    return { kind: "json", value: JSON.parse(text) };
+  } catch {
+    return { kind: "invalid", rawText: text };
+  }
+}
+
+function assertNonEmptyString(value: string, name: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new TypeError(`${name} must be a non-empty string`);
+  }
+  return value.trim();
 }
