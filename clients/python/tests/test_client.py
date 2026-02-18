@@ -6,7 +6,7 @@ from typing import Any, Callable, cast
 import httpx
 import pytest
 
-from osolar_client import ApiError, OsolarLinkClient
+from osolar_client import ApiError, OsolarLinkClient, PlantLinkRequest
 
 
 class RecordingHttpClient:
@@ -79,6 +79,30 @@ def test_search_plants_omits_none_distance_km() -> None:
         http_client.close()
 
 
+def test_search_plants_keeps_zero_distance_km() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/search"
+        assert request.url.params["distance_km"] == "0.0"
+        return httpx.Response(200, json={"success": True, "data": {"features": []}})
+
+    client, http_client = make_client(handler)
+    try:
+        response = client.search_plants(q="foo", field="address", distance_km=0.0)
+        assert response["success"] is True
+    finally:
+        http_client.close()
+
+
+def test_search_plants_rejects_unsupported_field() -> None:
+    client = OsolarLinkClient(api_key="test-key")
+    unsafe_client = cast(Any, client)
+    try:
+        with pytest.raises(ValueError, match=r"^`field` must be one of: business_number, address\.$"):
+            unsafe_client.search_plants(q="foo", field="name")
+    finally:
+        client.close()
+
+
 def test_raises_api_error_on_non_2xx() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(403, json={"success": False, "message": "forbidden"})
@@ -117,13 +141,49 @@ def test_link_plant_supports_keyword_arguments() -> None:
 def test_link_plant_rejects_mixed_payload_styles() -> None:
     client = OsolarLinkClient(api_key="test-key")
     unsafe_client = cast(Any, client)
-    with pytest.raises(ValueError, match="either `body` or keyword arguments"):
+    with pytest.raises(ValueError, match=r"^Use either `body` or keyword arguments, not both\.$"):
         unsafe_client.link_plant(
             {"plant_uuid": "plant-1", "remark": "memo"},
             plant_uuid="plant-2",
             remark="memo",
         )
     client.close()
+
+
+def test_link_plant_accepts_typed_dict_body() -> None:
+    body: PlantLinkRequest = {"plant_uuid": "plant-1", "remark": "memo"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/links"
+        assert request.method == "POST"
+        assert json.loads(request.content.decode("utf-8")) == body
+        return httpx.Response(200, json={"success": True, "data": {"link_id": "plant-1", "created_at": "now"}})
+
+    client, http_client = make_client(handler)
+    try:
+        response = client.link_plant(body)
+        assert response["success"] is True
+    finally:
+        http_client.close()
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"plant_uuid": "plant-1"},
+        {"remark": "memo"},
+        {},
+        1,
+    ],
+)
+def test_link_plant_body_requires_plant_uuid_and_remark(body: Any) -> None:
+    client = OsolarLinkClient(api_key="test-key")
+    unsafe_client = cast(Any, client)
+    try:
+        with pytest.raises(ValueError, match=r"^`plant_uuid` and `remark` are required in `body`\.$"):
+            unsafe_client.link_plant(body)
+    finally:
+        client.close()
 
 
 @pytest.mark.parametrize(
@@ -334,6 +394,12 @@ def test_init_uses_default_base_url() -> None:
         assert url == "https://openapi.osolar.io/v1/links"
     finally:
         client.close()
+
+
+@pytest.mark.parametrize("api_key", ["", " ", "\t"])
+def test_init_rejects_empty_api_key(api_key: str) -> None:
+    with pytest.raises(ValueError, match=r"^`api_key` must be a non-empty string\.$"):
+        OsolarLinkClient(api_key=api_key)
 
 
 def test_init_trims_trailing_slash_from_base_url() -> None:
