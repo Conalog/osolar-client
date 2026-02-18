@@ -4,7 +4,7 @@ import json
 import os
 import sys
 
-from osolar_link_client import ApiError, OsolarLinkClient
+from osolar_client import ApiError, OsolarLinkClient
 
 
 def main() -> int:

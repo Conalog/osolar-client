@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal, TypedDict
+
+try:  # Python 3.11+
+    from typing import NotRequired
+except ImportError:  # Python 3.10
+    from typing_extensions import NotRequired
 
 
 class ApiResponseBase(TypedDict):
@@ -95,7 +100,7 @@ class DocumentResponse(TypedDict):
 class BillingAmountResponse(TypedDict):
     billing_month: str
     smp_billing_amount: int
-    rec_billing_amount: int
+    rec_billing_amount: int | None
 
 
 class GenerationAmountResponse(TypedDict):
@@ -122,3 +127,39 @@ class PlantOverviewResponse(TypedDict):
     plant_name: str
     billing_summary: list[BillingAmountResponse]
     recent_tasks: list[TaskDetail]
+
+
+class SearchPlantsApiResponse(ApiResponseBase, total=False):
+    data: PlantGeoJSONResponse | None
+
+
+class LinkPlantApiResponse(ApiResponseBase, total=False):
+    data: PlantLinkResponse | None
+
+
+class ListLinkedPlantsApiResponse(ApiResponseBase, total=False):
+    data: list[PlantLinkListResponse] | None
+
+
+class PlantInfoApiResponse(ApiResponseBase, total=False):
+    data: PlantInfoResponse | None
+
+
+class PlantContractApiResponse(ApiResponseBase, total=False):
+    data: PlantContractResponse | None
+
+
+class PlantDocumentsApiResponse(ApiResponseBase, total=False):
+    data: list[DocumentResponse] | None
+
+
+class PlantOverviewApiResponse(ApiResponseBase, total=False):
+    data: PlantOverviewResponse | None
+
+
+class MonthlyGenerationApiResponse(ApiResponseBase, total=False):
+    data: list[GenerationAmountResponse] | None
+
+
+class MonthlyBillingApiResponse(ApiResponseBase, total=False):
+    data: list[BillingAmountResponse] | None
