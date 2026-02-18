@@ -2,6 +2,7 @@ use reqwest::Method;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
+use std::time::Duration;
 
 use crate::error::ApiError;
 use crate::models::{
@@ -12,6 +13,7 @@ use crate::models::{
 };
 
 const DEFAULT_BASE_URL: &str = "https://openapi.osolar.io";
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug, Clone)]
 pub struct OsolarClient {
@@ -25,7 +27,10 @@ impl OsolarClient {
         Self {
             api_key: api_key.into(),
             base_url: DEFAULT_BASE_URL.to_string(),
-            http_client: reqwest::blocking::Client::new(),
+            http_client: reqwest::blocking::Client::builder()
+                .timeout(DEFAULT_TIMEOUT)
+                .build()
+                .unwrap_or_else(|_| reqwest::blocking::Client::new()),
         }
     }
 

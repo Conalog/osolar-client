@@ -1,6 +1,7 @@
 use osolar_client::models::{
     CapacityValue, GeoPoint, PlantConnectionListResponse, PlantConnectionRequest,
-    PlantConnectionResponse, PlantInfoResponse, PlantOwner, PlantOverviewResponse,
+    PlantConnectionResponse, PlantContractResponse, PlantInfoResponse, PlantOverviewResponse,
+    PlantOwner,
 };
 use serde_json::{json, Value};
 
@@ -126,4 +127,68 @@ fn serialize_info_uses_link_id_wire_key() {
     let json = serde_json::to_value(info).expect("info should serialize");
     assert_eq!(json.get("link_id"), Some(&Value::String("conn-200".to_string())));
     assert!(json.get("connection_id").is_none());
+}
+
+#[test]
+fn deserialize_contract_response_accepts_single_rec_fixed_contract() {
+    let raw = json!({
+        "ppa_type": "한국전력공사",
+        "rec_trade_type": "고정가격계약",
+        "rec_fixed_contract": {
+            "ess": true,
+            "target": "동서발전",
+            "price_type": "SMP+1REC*가중치",
+            "price": 165000
+        }
+    });
+
+    let parsed: PlantContractResponse =
+        serde_json::from_value(raw).expect("contract should deserialize");
+    assert_eq!(parsed.rec_contracts.len(), 1);
+    assert_eq!(parsed.rec_contracts[0].target, "동서발전");
+}
+
+#[test]
+fn deserialize_contract_response_accepts_rec_contracts_array() {
+    let raw = json!({
+        "ppa_type": "한국전력공사",
+        "rec_trade_type": "고정가격계약",
+        "rec_contracts": [{
+            "ess": false,
+            "target": "한수원"
+        }]
+    });
+
+    let parsed: PlantContractResponse =
+        serde_json::from_value(raw).expect("contract should deserialize");
+    assert_eq!(parsed.rec_contracts.len(), 1);
+    assert_eq!(parsed.rec_contracts[0].target, "한수원");
+}
+
+#[test]
+fn deserialize_contract_response_allows_missing_contract_details() {
+    let raw = json!({
+        "ppa_type": "한국전력공사",
+        "rec_trade_type": "현물시장"
+    });
+
+    let parsed: PlantContractResponse =
+        serde_json::from_value(raw).expect("spot-market contract should deserialize");
+    assert!(parsed.rec_contracts.is_empty());
+}
+
+#[test]
+fn deserialize_contract_response_defaults_missing_ess_to_false() {
+    let raw = json!({
+        "ppa_type": "한국전력공사",
+        "rec_trade_type": "고정가격계약",
+        "rec_fixed_contract": {
+            "target": "동서발전"
+        }
+    });
+
+    let parsed: PlantContractResponse =
+        serde_json::from_value(raw).expect("contract without ess should deserialize");
+    assert_eq!(parsed.rec_contracts.len(), 1);
+    assert!(!parsed.rec_contracts[0].ess);
 }
