@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	osolar "github.com/conalog/osolar-client/clients/go"
+	"github.com/conalog/osolar-client/clients/go"
 )
 
 func main() {

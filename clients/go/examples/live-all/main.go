@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	osolar "github.com/conalog/osolar-client/clients/go"
+	"github.com/conalog/osolar-client/clients/go"
 )
 
 type routeResult struct {
@@ -84,6 +84,7 @@ func main() {
 
 	if plantUUIDForLink == "" {
 		plantUUIDForLink = "not-a-valid-uuid"
+		fmt.Fprintln(os.Stderr, "No valid plant UUID found; using invalid UUID to exercise expected error-path for POST /v1/links")
 	}
 	_, err = client.LinkPlant(ctx, osolar.PlantLinkRequest{PlantUUID: plantUUIDForLink, Remark: "sdk live-all route smoke test"})
 	if err != nil {

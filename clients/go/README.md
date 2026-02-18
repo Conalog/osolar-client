@@ -2,6 +2,12 @@
 
 OSOLAR-LINK Open API용 수동 구현 Go SDK입니다.
 
+## 마이그레이션 노트
+
+- 기본 패키지명은 `osolar`입니다.
+- 기존 코드에서 `osolarlink "github.com/conalog/osolar-client/clients/go"`처럼 alias를 명시했다면 그대로 동작합니다.
+- alias 없이 import 했다면 식별자를 `osolar`로 변경해야 합니다.
+
 ## 무엇을 제공하나요?
 
 - `context.Context` 기반 동기 API 호출
@@ -46,7 +52,7 @@ import (
 	"fmt"
 	"os"
 
-	osolar "github.com/conalog/osolar-client/clients/go"
+	"github.com/conalog/osolar-client/clients/go"
 )
 
 func main() {
