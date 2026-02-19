@@ -146,7 +146,7 @@ impl OsolarClient {
         T: DeserializeOwned,
         Q: Serialize,
     {
-        self.request(Method::GET, path, query, Option::<&()>::None)
+        self.request(Method::GET, path, query, None::<Value>)
     }
 
     fn post_json<T, B>(&self, path: &str, body: &B) -> Result<T, ApiError>
