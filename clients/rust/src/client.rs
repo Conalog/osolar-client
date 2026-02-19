@@ -223,6 +223,11 @@ impl OsolarClient {
             });
         }
 
+        if raw_body.is_empty() || status == reqwest::StatusCode::NO_CONTENT {
+            // Keep behavior aligned with other SDKs for successful empty responses.
+            return Ok(serde_json::from_slice::<T>(br#"{"success":true,"data":null}"#)?);
+        }
+
         Ok(serde_json::from_slice::<T>(&raw_body)?)
     }
 }

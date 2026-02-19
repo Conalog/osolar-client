@@ -261,3 +261,55 @@ fn get_plant_overview_parses_nested_payloads() {
     assert_eq!(data.billing_summary.len(), 1);
     assert_eq!(data.recent_tasks.len(), 1);
 }
+
+#[test]
+fn monthly_billing_allows_null_rec_billing_amount() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/v1/links/conn-1/billing/monthly")
+            .header("x-api-key", "test-key");
+        then.status(200).header("content-type", "application/json").body(
+            r#"{
+                "success": true,
+                "data": [{
+                    "billing_month": "2025-03",
+                    "smp_billing_amount": 3000000,
+                    "rec_billing_amount": null
+                }]
+            }"#,
+        );
+    });
+
+    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let response = client
+        .get_monthly_billing("conn-1", MonthlyBillingParams::default())
+        .expect("get_monthly_billing should succeed");
+
+    mock.assert();
+    let data = response
+        .data
+        .expect("billing response should contain data payload");
+    assert_eq!(data.len(), 1);
+    assert!(data[0].rec_billing_amount.is_none());
+}
+
+#[test]
+fn list_connected_plants_treats_empty_body_as_success() {
+    let server = MockServer::start();
+    let mock = server.mock(|when, then| {
+        when.method(GET)
+            .path("/v1/links")
+            .header("x-api-key", "test-key");
+        then.status(204);
+    });
+
+    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let response = client
+        .list_connected_plants()
+        .expect("list_connected_plants should succeed on empty body");
+
+    mock.assert();
+    assert!(response.success);
+    assert!(response.data.is_none());
+}

@@ -93,7 +93,7 @@ type DocumentResponse struct {
 type BillingAmountResponse struct {
 	BillingMonth     string `json:"billing_month"`
 	SMPBillingAmount int    `json:"smp_billing_amount"`
-	RECBillingAmount int    `json:"rec_billing_amount"`
+	RECBillingAmount *int   `json:"rec_billing_amount"`
 }
 
 type GenerationAmountResponse struct {
