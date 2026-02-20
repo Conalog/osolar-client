@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 )
@@ -126,7 +125,7 @@ func doJSON[T any](ctx context.Context, c *Client, method string, path string, q
 		return nil, c.initErr
 	}
 	if ctx == nil {
-		ctx = context.Background()
+		return nil, errors.New("context cannot be nil")
 	}
 
 	fullURL := c.baseURL + path
@@ -156,27 +155,30 @@ func doJSON[T any](ctx context.Context, c *Client, method string, path string, q
 	if err != nil {
 		return nil, err
 	}
+	resp.Body = http.MaxBytesReader(nil, resp.Body, maxResponseBodyBytes)
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodyBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(respBody) > maxResponseBodyBytes {
-		return nil, fmt.Errorf("osolar response body exceeds %d bytes", maxResponseBodyBytes)
-	}
-
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
 		return nil, &APIError{StatusCode: resp.StatusCode, Status: resp.Status, Body: respBody}
 	}
-	if len(respBody) == 0 || resp.StatusCode == http.StatusNoContent {
+
+	if resp.StatusCode == http.StatusNoContent {
 		out := new(T)
 		markSuccessOnEmptyBody(out)
 		return out, nil
 	}
 
 	out := new(T)
-	if err := json.Unmarshal(respBody, out); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		if err == io.EOF {
+			markSuccessOnEmptyBody(out)
+			return out, nil
+		}
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			return nil, fmt.Errorf("osolar response body exceeds %d bytes", maxResponseBodyBytes)
+		}
 		return nil, err
 	}
 	return out, nil
@@ -267,19 +269,12 @@ func normalizedPort(u *url.URL) string {
 	return ""
 }
 
+type successMarker interface {
+	markSuccess()
+}
+
 func markSuccessOnEmptyBody[T any](out *T) {
-	value := reflect.ValueOf(out)
-	if value.Kind() != reflect.Ptr || value.IsNil() {
-		return
-	}
-
-	structValue := value.Elem()
-	if structValue.Kind() != reflect.Struct {
-		return
-	}
-
-	successField := structValue.FieldByName("Success")
-	if successField.IsValid() && successField.CanSet() && successField.Kind() == reflect.Bool {
-		successField.SetBool(true)
+	if sm, ok := any(out).(successMarker); ok {
+		sm.markSuccess()
 	}
 }

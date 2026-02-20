@@ -71,23 +71,17 @@ func TestNewClientAllowsLoopbackHTTPBaseURL(t *testing.T) {
 }
 
 func TestNilContextDoesNotPanic(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Context() == nil {
-			t.Fatal("expected non-nil request context")
-		}
-		writeJSON(t, w, map[string]any{"success": true, "data": []any{}})
-	}))
-	defer ts.Close()
-
-	client := NewClient("test-key", ts.URL, ts.Client())
+	client := NewClient("test-key", "https://api.example.com", nil)
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("expected no panic, got %v", r)
 		}
 	}()
 
-	if _, err := client.ListLinkedPlants(nil); err != nil {
-		t.Fatalf("unexpected err: %v", err)
+	if _, err := client.ListLinkedPlants(nil); err == nil {
+		t.Fatal("expected err for nil context, got nil")
+	} else if !strings.Contains(err.Error(), "context cannot be nil") {
+		t.Fatalf("expected context error, got %v", err)
 	}
 }
 
@@ -350,7 +344,7 @@ func TestReturnsAPIErrorOnNon2xx(t *testing.T) {
 func TestRejectsOverlyLargeResponseBody(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		_, _ = io.WriteString(w, strings.Repeat("a", maxResponseBodyBytes+1))
+		_, _ = io.WriteString(w, fixedSizeSuccessBody(maxResponseBodyBytes+1))
 	}))
 	defer ts.Close()
 
