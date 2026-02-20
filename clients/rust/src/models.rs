@@ -150,7 +150,6 @@ pub struct DocumentResponse {
 pub struct BillingAmountResponse {
     pub billing_month: String,
     pub smp_billing_amount: i64,
-    #[serde(default)]
     pub rec_billing_amount: Option<i64>,
 }
 

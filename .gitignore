@@ -13,6 +13,9 @@ __pycache__/
 *.egg-info/
 .venv/
 clients/python/.pytest_cache/
+clients/python/mutants/
+clients/python/.mutmut-cache/
+clients/python/.coverage
 
 # Go
 clients/go/coverage.out
@@ -20,7 +23,11 @@ clients/go/coverage.out
 # Rust
 target/
 clients/rust/target/
+target/
 Cargo.lock
+
+# OpenCode
+.opencode/
 
 # Misc
 .env

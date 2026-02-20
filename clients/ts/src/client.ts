@@ -43,8 +43,8 @@ export class OsolarLinkClient {
 
   constructor(config: OsolarLinkClientConfig) {
     this.apiKey = assertNonEmptyString(config.apiKey, "apiKey");
-    this.baseUrl = (config.baseUrl ?? "https://openapi.osolar.io").replace(/\/$/, "");
-    this.fetchFn = config.fetchFn ?? fetch;
+    this.baseUrl = normalizeBaseUrl(config.baseUrl);
+    this.fetchFn = resolveFetchFn(config.fetchFn);
   }
 
   async searchPlants(params: SearchPlantsParams): Promise<ApiResponse<PlantGeoJSONResponse>> {
@@ -146,7 +146,7 @@ export class OsolarLinkClient {
       body?: unknown;
     } = {},
   ): Promise<T> {
-    const url = new URL(`${this.baseUrl}${path}`);
+    const url = new URL(path.replace(/^\/+/, ""), this.baseUrl);
     if (options.query) {
       for (const [key, value] of Object.entries(options.query)) {
         if (value !== undefined && value !== null) {
@@ -169,6 +169,7 @@ export class OsolarLinkClient {
       method,
       headers,
       body,
+      redirect: "manual",
     });
 
     const text = await response.text();
@@ -284,4 +285,52 @@ function assertNonEmptyString(value: string, name: string): string {
     throw new TypeError(`${name} must be a non-empty string`);
   }
   return value.trim();
+}
+
+function normalizeBaseUrl(baseUrl: string | undefined): string {
+  const raw = baseUrl ?? "https://openapi.osolar.io";
+  const parsed = new URL(raw);
+
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new RangeError(`baseUrl must be an absolute http(s) URL (got: ${parsed.protocol})`);
+  }
+
+  if (parsed.search || parsed.hash) {
+    throw new RangeError("baseUrl must not include query parameters or a fragment");
+  }
+
+  if (parsed.protocol === "http:" && !isLocalhostHostname(parsed.hostname)) {
+    throw new RangeError(
+      "baseUrl must use https (http is only allowed for localhost) to avoid sending x-api-key over plaintext HTTP",
+    );
+  }
+
+  if (!parsed.pathname.endsWith("/")) {
+    parsed.pathname += "/";
+  }
+  parsed.search = "";
+  parsed.hash = "";
+
+  return parsed.toString();
+}
+
+function isLocalhostHostname(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function resolveFetchFn(fetchFn: typeof fetch | undefined): typeof fetch {
+  if (fetchFn) {
+    return fetchFn;
+  }
+
+  const globalFetch = (globalThis as unknown as { fetch?: unknown }).fetch;
+  if (typeof globalFetch === "function") {
+    return globalFetch.bind(globalThis) as typeof fetch;
+  }
+
+  return (async () => {
+    throw new ReferenceError(
+      "fetch is not defined in this runtime. Pass config.fetchFn (for example, undici's fetch) when constructing OsolarLinkClient.",
+    );
+  }) as unknown as typeof fetch;
 }

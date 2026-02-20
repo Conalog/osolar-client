@@ -66,6 +66,12 @@ async function main() {
 main().catch(console.error);
 ```
 
+### 주의사항 (런타임 / baseUrl)
+
+- Node.js 18 미만처럼 `fetch`가 없는 런타임에서는 `fetchFn`을 직접 주입해야 합니다.
+- `baseUrl`은 `https://...`만 허용됩니다. (로컬 개발용 `http://localhost...`만 예외)
+- `baseUrl`에 `?query`나 `#fragment`를 붙이지 마세요. (요청 URL이 깨질 수 있습니다)
+
 ## 자주 쓰는 메서드
 
 - `searchPlants({ q, field, distanceKm? })`: 발전소 검색

@@ -19,6 +19,7 @@ describe("OsolarLinkClient", () => {
       expect(url).toContain("field=address");
       expect(url).toContain("distance_km=2");
       expect((init?.headers as Record<string, string>)["x-api-key"]).toBe("test-key");
+      expect(init?.redirect).toBe("manual");
 
       return new Response(JSON.stringify({ success: true, data: { features: [] } }), {
         status: 200,
@@ -35,6 +36,36 @@ describe("OsolarLinkClient", () => {
     const response = await client.searchPlants({ q: "foo", field: "address", distanceKm: 2 });
     expect(response.success).toBe(true);
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects non-localhost http baseUrl to avoid plaintext x-api-key exposure", () => {
+    expect(() => new OsolarLinkClient({ apiKey: "test-key", baseUrl: "http://example.com" })).toThrow(
+      "baseUrl must use https (http is only allowed for localhost) to avoid sending x-api-key over plaintext HTTP",
+    );
+  });
+
+  it("rejects baseUrl with query params or fragment to avoid malformed request URLs", () => {
+    expect(() => new OsolarLinkClient({ apiKey: "test-key", baseUrl: "https://example.com?env=prod" })).toThrow(
+      "baseUrl must not include query parameters or a fragment",
+    );
+    expect(() => new OsolarLinkClient({ apiKey: "test-key", baseUrl: "https://example.com#frag" })).toThrow(
+      "baseUrl must not include query parameters or a fragment",
+    );
+  });
+
+  it("does not throw at construction time when global fetch is missing", async () => {
+    const originalFetch = globalThis.fetch;
+    // @ts-expect-error test-only: simulate runtime without fetch
+    delete (globalThis as unknown as { fetch?: unknown }).fetch;
+
+    try {
+      const client = new OsolarLinkClient({ apiKey: "test-key", baseUrl: "https://example.com" });
+      await expect(client.listLinkedPlants()).rejects.toThrow(
+        "fetch is not defined in this runtime. Pass config.fetchFn (for example, undici's fetch) when constructing OsolarLinkClient.",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   it("throws when searchPlants q is empty", async () => {
