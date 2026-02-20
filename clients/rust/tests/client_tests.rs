@@ -20,7 +20,9 @@ fn search_plants_sends_query_and_header() {
             .body(r#"{"success":true,"data":{"features":[]}}"#);
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .search_plants(SearchPlantsParams {
             q: "foo".to_string(),
@@ -43,7 +45,9 @@ fn returns_http_error_on_non_2xx() {
             .body(r#"{"success":false,"message":"forbidden"}"#);
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let err = client
         .list_connected_plants()
         .expect_err("list_connected_plants should fail");
@@ -51,6 +55,71 @@ fn returns_http_error_on_non_2xx() {
     match err {
         ApiError::Http { status, .. } => assert_eq!(status, 403),
         other => panic!("expected ApiError::Http, got {other:?}"),
+    }
+}
+
+#[test]
+fn debug_redacts_api_key() {
+    let client = OsolarClient::new("secret-key");
+    let s = format!("{client:?}");
+    assert!(!s.contains("secret-key"), "Debug output must not contain api key");
+    assert!(s.contains("<redacted>"));
+}
+
+#[test]
+fn does_not_follow_redirects() {
+    let redirect_to = MockServer::start();
+    let redirect_from = MockServer::start();
+
+    let dest = redirect_to.mock(|when, then| {
+        when.method(GET).path("/v1/links");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(r#"{"success":true,"data":[]}"#);
+    });
+
+    let from = redirect_from.mock(|when, then| {
+        when.method(GET).path("/v1/links");
+        then.status(302)
+            .header("location", format!("{}/v1/links", redirect_to.base_url()));
+    });
+
+    let client = OsolarClient::new("test-key")
+        .with_base_url(redirect_from.base_url())
+        .allow_insecure_http();
+    let err = client
+        .list_connected_plants()
+        .expect_err("redirects should not be followed automatically");
+
+    from.assert();
+    dest.assert_calls(0);
+    match err {
+        ApiError::Http { status, .. } => assert_eq!(status, 302),
+        other => panic!("expected ApiError::Http, got {other:?}"),
+    }
+}
+
+#[test]
+fn returns_response_too_large_error() {
+    let server = MockServer::start();
+    let oversized = "a".repeat((10 * 1024 * 1024 + 1) as usize);
+    let _mock = server.mock(|when, then| {
+        when.method(GET).path("/v1/links");
+        then.status(200)
+            .header("content-type", "application/json")
+            .body(oversized.clone());
+    });
+
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
+    let err = client
+        .list_connected_plants()
+        .expect_err("oversized response should be rejected");
+
+    match err {
+        ApiError::ResponseTooLarge { .. } => {}
+        other => panic!("expected ApiError::ResponseTooLarge, got {other:?}"),
     }
 }
 
@@ -68,7 +137,9 @@ fn monthly_generation_uses_snake_case_query_params() {
             .body(r#"{"success":true,"data":[]}"#);
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .get_monthly_generation(
             "conn-1",
@@ -97,7 +168,9 @@ fn monthly_billing_uses_camel_case_query_params() {
             .body(r#"{"success":true,"data":[]}"#);
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .get_monthly_billing(
             "conn-1",
@@ -130,7 +203,9 @@ fn connect_plant_serializes_link_id_and_parses_response() {
             .body(r#"{"success":true,"data":{"link_id":"conn-777","created_at":"2024-05-16T14:12:00"}}"#);
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .connect_plant(&osolar_client::models::PlantConnectionRequest {
             plant_uuid: "plant-uuid".to_string(),
@@ -170,7 +245,9 @@ fn get_plant_contract_accepts_single_contract_object_shape() {
         );
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .get_plant_contract("conn-1")
         .expect("get_plant_contract should succeed");
@@ -204,7 +281,9 @@ fn get_plant_documents_parses_document_list() {
         );
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .get_plant_documents("conn-1")
         .expect("get_plant_documents should succeed");
@@ -248,7 +327,9 @@ fn get_plant_overview_parses_nested_payloads() {
         );
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .get_plant_overview("conn-1")
         .expect("get_plant_overview should succeed");
@@ -281,7 +362,9 @@ fn monthly_billing_allows_null_rec_billing_amount() {
         );
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .get_monthly_billing("conn-1", MonthlyBillingParams::default())
         .expect("get_monthly_billing should succeed");
@@ -304,7 +387,9 @@ fn list_connected_plants_treats_empty_body_as_success() {
         then.status(204);
     });
 
-    let client = OsolarClient::new("test-key").with_base_url(server.base_url());
+    let client = OsolarClient::new("test-key")
+        .with_base_url(server.base_url())
+        .allow_insecure_http();
     let response = client
         .list_connected_plants()
         .expect("list_connected_plants should succeed on empty body");

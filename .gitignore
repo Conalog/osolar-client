@@ -21,6 +21,7 @@ clients/python/.coverage
 clients/go/coverage.out
 
 # Rust
+target/
 clients/rust/target/
 target/
 Cargo.lock
