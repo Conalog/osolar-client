@@ -576,12 +576,11 @@ def test_get_plant_contract_normalizes_legacy_rec_fixed_contract_object() -> Non
     client, http_client = make_client(handler)
     try:
         response = client.get_plant_contract("link-1")
-        assert response["success"] is True
-        assert response["data"] is not None
-        assert response["data"]["rec_contracts"] == [
-            {"target": "동서발전", "ess": False}
-        ]
-        assert "rec_fixed_contract" not in response["data"]
+        assert response.get("success") is True
+        data = response.get("data")
+        assert data is not None
+        assert data["rec_contracts"] == [{"target": "동서발전", "ess": False}]
+        assert "rec_fixed_contract" not in data
     finally:
         http_client.close()
 
@@ -604,11 +603,10 @@ def test_get_plant_contract_defaults_ess_for_rec_contracts_items() -> None:
     client, http_client = make_client(handler)
     try:
         response = client.get_plant_contract("link-1")
-        assert response["success"] is True
-        assert response["data"] is not None
-        assert response["data"]["rec_contracts"] == [
-            {"target": "동서발전", "ess": False}
-        ]
+        assert response.get("success") is True
+        data = response.get("data")
+        assert data is not None
+        assert data["rec_contracts"] == [{"target": "동서발전", "ess": False}]
     finally:
         http_client.close()
 
