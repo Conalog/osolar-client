@@ -14,6 +14,7 @@ use crate::models::{
 
 const DEFAULT_BASE_URL: &str = "https://openapi.osolar.io";
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+const EMPTY_SUCCESS_RESPONSE: &[u8] = br#"{"success":true,"data":null}"#;
 
 #[derive(Debug, Clone)]
 pub struct OsolarClient {
@@ -221,6 +222,11 @@ impl OsolarClient {
                 status: status.as_u16(),
                 body,
             });
+        }
+
+        if raw_body.is_empty() || status == reqwest::StatusCode::NO_CONTENT {
+            // Keep behavior aligned with other SDKs for successful empty responses.
+            return Ok(serde_json::from_slice::<T>(EMPTY_SUCCESS_RESPONSE)?);
         }
 
         Ok(serde_json::from_slice::<T>(&raw_body)?)

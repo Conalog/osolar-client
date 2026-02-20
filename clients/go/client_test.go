@@ -261,6 +261,35 @@ func TestMonthlyEndpointsUseExpectedQueryKeys(t *testing.T) {
 	}
 }
 
+func TestMonthlyBillingAllowsNullRecBillingAmount(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{
+			"success": true,
+			"data": []map[string]any{
+				{
+					"billing_month":      "2025-03",
+					"smp_billing_amount": 3000000,
+					"rec_billing_amount": nil,
+				},
+			},
+		})
+	}))
+	defer ts.Close()
+
+	client := NewClient("test-key", ts.URL, ts.Client())
+	response, err := client.GetMonthlyBilling(context.Background(), "link-1", MonthlyBillingParams{})
+	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+
+	if response.Data == nil || len(*response.Data) != 1 {
+		t.Fatalf("expected exactly one billing row, got %+v", response.Data)
+	}
+	if (*response.Data)[0].RECBillingAmount != nil {
+		t.Fatalf("expected rec_billing_amount to be nil, got %v", *(*response.Data)[0].RECBillingAmount)
+	}
+}
+
 func TestReturnsAPIErrorOnNon2xx(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
