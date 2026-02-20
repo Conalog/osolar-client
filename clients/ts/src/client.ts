@@ -289,13 +289,21 @@ export class OsolarLinkClient {
 
     const effectiveTimeout = options.timeout ?? this.timeout;
 
-    if (!signal && effectiveTimeout !== undefined) {
-      if (typeof AbortSignal !== "undefined" && "timeout" in AbortSignal && typeof AbortSignal.timeout === "function") {
+    if (effectiveTimeout !== undefined && effectiveTimeout > 0) {
+      if (!signal && typeof AbortSignal !== "undefined" && "timeout" in AbortSignal && typeof AbortSignal.timeout === "function") {
         signal = AbortSignal.timeout(effectiveTimeout);
       } else if (typeof AbortController !== "undefined") {
         const controller = new AbortController();
+        if (signal) {
+          if (signal.aborted) controller.abort(signal.reason);
+          else signal.addEventListener("abort", () => controller.abort(signal!.reason), { once: true });
+        }
         signal = controller.signal;
-        timeoutId = setTimeout(() => controller.abort(new Error("Request timeout")), effectiveTimeout);
+        timeoutId = setTimeout(() => {
+          const error = new Error("Request timeout");
+          error.name = "TimeoutError";
+          controller.abort(error);
+        }, effectiveTimeout);
       }
     }
 
