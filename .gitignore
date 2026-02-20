@@ -22,7 +22,11 @@ clients/go/coverage.out
 
 # Rust
 clients/rust/target/
+target/
 Cargo.lock
+
+# OpenCode
+.opencode/
 
 # Misc
 .env
