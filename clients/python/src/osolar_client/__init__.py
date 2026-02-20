@@ -1,3 +1,4 @@
+from .async_client import AsyncOsolarLinkClient
 from .client import OsolarLinkClient
 from .client import SearchField
 from .exceptions import ApiError
@@ -35,6 +36,7 @@ from .models import (
 __all__ = [
     "ApiError",
     "ApiResponseBase",
+    "AsyncOsolarLinkClient",
     "BillingAmountResponse",
     "DocumentResponse",
     "GenerationAmountResponse",
