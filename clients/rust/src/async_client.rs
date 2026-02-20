@@ -215,15 +215,11 @@ impl AsyncOsolarClient {
             }
         }
 
-        let mut raw_body = Vec::with_capacity(
-            content_length
-                .and_then(|len| usize::try_from(len).ok())
-                .unwrap_or(0),
-        );
+        let mut raw_body = Vec::new();
         while let Some(chunk) = response.chunk().await? {
             if raw_body.len() + chunk.len() > MAX_RESPONSE_BYTES as usize {
                 return Err(ApiError::ResponseTooLarge {
-                    content_length,
+                    content_length: response.content_length(),
                     limit_bytes: MAX_RESPONSE_BYTES,
                 });
             }

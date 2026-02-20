@@ -235,11 +235,7 @@ impl OsolarClient {
             }
         }
 
-        let mut raw_body = Vec::with_capacity(
-            content_length
-                .and_then(|len| usize::try_from(len).ok())
-                .unwrap_or(0),
-        );
+        let mut raw_body = Vec::new();
         response
             .take(MAX_RESPONSE_BYTES + 1)
             .read_to_end(&mut raw_body)?;
