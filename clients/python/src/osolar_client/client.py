@@ -226,10 +226,9 @@ class OsolarLinkClient:
         def with_default_ess(item: Any) -> Any:
             if not isinstance(item, dict):
                 return item
-            if "ess" in item:
-                return item
             out = dict(item)
-            out["ess"] = False
+            if "ess" not in out:
+                out["ess"] = False
             return out
 
         contracts: list[Any] | None = None
