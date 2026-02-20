@@ -6,6 +6,12 @@ type ApiResponse[T any] struct {
 	Data    *T      `json:"data,omitempty"`
 }
 
+func (a *ApiResponse[T]) markSuccess() {
+	if a != nil {
+		a.Success = true
+	}
+}
+
 type GeoPoint struct {
 	Type        string    `json:"type,omitempty"`
 	Coordinates []float64 `json:"coordinates"`
