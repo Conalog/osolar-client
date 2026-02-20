@@ -159,7 +159,14 @@ func doJSON[T any](ctx context.Context, c *Client, method string, path string, q
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			var maxBytesErr *http.MaxBytesError
+			if errors.As(err, &maxBytesErr) {
+				return nil, fmt.Errorf("osolar response body exceeds %d bytes", maxResponseBodyBytes)
+			}
+			return nil, err
+		}
 		return nil, &APIError{StatusCode: resp.StatusCode, Status: resp.Status, Body: respBody}
 	}
 
