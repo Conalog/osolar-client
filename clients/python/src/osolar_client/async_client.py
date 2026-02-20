@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import TracebackType
-from typing import Any, Literal, overload
+from typing import Any, overload
 from urllib.parse import quote, urlparse
 
 import httpx
