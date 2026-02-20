@@ -504,6 +504,41 @@ def test_init_allows_http_base_url_for_localhost() -> None:
         client.close()
 
 
+def test_init_allows_http_base_url_for_localhost_hostname() -> None:
+    recording_http_client = RecordingHttpClient()
+    client = OsolarLinkClient(
+        api_key="test-key",
+        base_url="http://localhost:8080",
+        http_client=cast(httpx.Client, recording_http_client),
+    )
+    try:
+        client.list_linked_plants()
+        _, url, _ = recording_http_client.calls[0]
+        assert url == "http://localhost:8080/v1/links"
+    finally:
+        client.close()
+
+
+def test_init_allows_http_base_url_for_ipv6_loopback() -> None:
+    recording_http_client = RecordingHttpClient()
+    client = OsolarLinkClient(
+        api_key="test-key",
+        base_url="http://[::1]:8080",
+        http_client=cast(httpx.Client, recording_http_client),
+    )
+    try:
+        client.list_linked_plants()
+        _, url, _ = recording_http_client.calls[0]
+        assert url == "http://[::1]:8080/v1/links"
+    finally:
+        client.close()
+
+
+def test_init_rejects_base_url_missing_hostname() -> None:
+    with pytest.raises(ValueError, match=r"^`base_url` must include a hostname\.$"):
+        OsolarLinkClient(api_key="test-key", base_url="https://")
+
+
 def test_init_uses_default_timeout_for_owned_http_client() -> None:
     client = OsolarLinkClient(api_key="test-key")
     try:
