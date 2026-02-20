@@ -11,7 +11,9 @@ from osolar_client import ApiError, OsolarLinkClient, PlantLinkRequest
 
 class RecordingHttpClient:
     def __init__(self, response: httpx.Response | None = None) -> None:
-        self._response = response or httpx.Response(200, json={"success": True, "data": {}})
+        self._response = response or httpx.Response(
+            200, json={"success": True, "data": {}}
+        )
         self.calls: list[tuple[str, str, dict[str, Any]]] = []
         self.is_closed = False
 
@@ -26,8 +28,14 @@ class RecordingHttpClient:
 class RecordingRequestClient(OsolarLinkClient):
     def __init__(self) -> None:
         dummy_http_client = cast(httpx.Client, RecordingHttpClient())
-        super().__init__(api_key="test-key", base_url="https://example.com", http_client=dummy_http_client)
-        self.calls: list[tuple[str, str, dict[str, Any] | None, dict[str, Any] | None]] = []
+        super().__init__(
+            api_key="test-key",
+            base_url="https://example.com",
+            http_client=dummy_http_client,
+        )
+        self.calls: list[
+            tuple[str, str, dict[str, Any] | None, dict[str, Any] | None]
+        ] = []
 
     def _request(
         self,
@@ -40,10 +48,14 @@ class RecordingRequestClient(OsolarLinkClient):
         return {"success": True, "data": {}}
 
 
-def make_client(handler: Callable[[httpx.Request], httpx.Response]) -> tuple[OsolarLinkClient, httpx.Client]:
+def make_client(
+    handler: Callable[[httpx.Request], httpx.Response],
+) -> tuple[OsolarLinkClient, httpx.Client]:
     transport = httpx.MockTransport(handler)
     http_client = httpx.Client(transport=transport)
-    client = OsolarLinkClient(api_key="test-key", base_url="https://example.com", http_client=http_client)
+    client = OsolarLinkClient(
+        api_key="test-key", base_url="https://example.com", http_client=http_client
+    )
     return client, http_client
 
 
@@ -97,7 +109,9 @@ def test_search_plants_rejects_unsupported_field() -> None:
     client = OsolarLinkClient(api_key="test-key")
     unsafe_client = cast(Any, client)
     try:
-        with pytest.raises(ValueError, match=r"^`field` must be one of: business_number, address\.$"):
+        with pytest.raises(
+            ValueError, match=r"^`field` must be one of: business_number, address\.$"
+        ):
             unsafe_client.search_plants(q="foo", field="name")
     finally:
         client.close()
@@ -128,11 +142,16 @@ def test_link_plant_supports_keyword_arguments() -> None:
             "remark": "memo",
             "link_id": "link-1",
         }
-        return httpx.Response(200, json={"success": True, "data": {"link_id": "link-1", "created_at": "now"}})
+        return httpx.Response(
+            200,
+            json={"success": True, "data": {"link_id": "link-1", "created_at": "now"}},
+        )
 
     client, http_client = make_client(handler)
     try:
-        response = client.link_plant(plant_uuid="plant-1", remark="memo", link_id="link-1")
+        response = client.link_plant(
+            plant_uuid="plant-1", remark="memo", link_id="link-1"
+        )
         assert response["success"] is True
     finally:
         http_client.close()
@@ -141,7 +160,9 @@ def test_link_plant_supports_keyword_arguments() -> None:
 def test_link_plant_rejects_mixed_payload_styles() -> None:
     client = OsolarLinkClient(api_key="test-key")
     unsafe_client = cast(Any, client)
-    with pytest.raises(ValueError, match=r"^Use either `body` or keyword arguments, not both\.$"):
+    with pytest.raises(
+        ValueError, match=r"^Use either `body` or keyword arguments, not both\.$"
+    ):
         unsafe_client.link_plant(
             {"plant_uuid": "plant-1", "remark": "memo"},
             plant_uuid="plant-2",
@@ -157,7 +178,10 @@ def test_link_plant_accepts_typed_dict_body() -> None:
         assert request.url.path == "/v1/links"
         assert request.method == "POST"
         assert json.loads(request.content.decode("utf-8")) == body
-        return httpx.Response(200, json={"success": True, "data": {"link_id": "plant-1", "created_at": "now"}})
+        return httpx.Response(
+            200,
+            json={"success": True, "data": {"link_id": "plant-1", "created_at": "now"}},
+        )
 
     client, http_client = make_client(handler)
     try:
@@ -180,7 +204,9 @@ def test_link_plant_body_requires_plant_uuid_and_remark(body: Any) -> None:
     client = OsolarLinkClient(api_key="test-key")
     unsafe_client = cast(Any, client)
     try:
-        with pytest.raises(ValueError, match=r"^`plant_uuid` and `remark` are required in `body`\.$"):
+        with pytest.raises(
+            ValueError, match=r"^`plant_uuid` and `remark` are required in `body`\.$"
+        ):
             unsafe_client.link_plant(body)
     finally:
         client.close()
@@ -194,12 +220,18 @@ def test_link_plant_body_requires_plant_uuid_and_remark(body: Any) -> None:
         {"link_id": "link-2"},
     ],
 )
-def test_link_plant_rejects_any_keyword_when_body_is_given(kwargs: dict[str, str]) -> None:
+def test_link_plant_rejects_any_keyword_when_body_is_given(
+    kwargs: dict[str, str],
+) -> None:
     client = OsolarLinkClient(api_key="test-key")
     unsafe_client = cast(Any, client)
     try:
-        with pytest.raises(ValueError, match=r"^Use either `body` or keyword arguments, not both\.$"):
-            unsafe_client.link_plant({"plant_uuid": "plant-1", "remark": "memo"}, **kwargs)
+        with pytest.raises(
+            ValueError, match=r"^Use either `body` or keyword arguments, not both\.$"
+        ):
+            unsafe_client.link_plant(
+                {"plant_uuid": "plant-1", "remark": "memo"}, **kwargs
+            )
     finally:
         client.close()
 
@@ -211,7 +243,9 @@ def test_link_plant_rejects_any_keyword_when_body_is_given(kwargs: dict[str, str
         {"remark": "memo"},
     ],
 )
-def test_link_plant_requires_plant_uuid_and_remark_when_body_missing(kwargs: dict[str, str]) -> None:
+def test_link_plant_requires_plant_uuid_and_remark_when_body_missing(
+    kwargs: dict[str, str],
+) -> None:
     client = OsolarLinkClient(api_key="test-key")
     unsafe_client = cast(Any, client)
     try:
@@ -227,7 +261,9 @@ def test_link_plant_requires_plant_uuid_and_remark_when_body_missing(kwargs: dic
 def test_get_plant_info_url_encodes_link_id() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.raw_path == b"/v1/links/abc%2Fdef%20ghi"
-        return httpx.Response(200, json={"success": True, "data": {"link_id": "abc/def ghi"}})
+        return httpx.Response(
+            200, json={"success": True, "data": {"link_id": "abc/def ghi"}}
+        )
 
     client, http_client = make_client(handler)
     try:
@@ -277,7 +313,9 @@ def test_monthly_methods_use_endpoint_specific_query_keys() -> None:
         ("get_plant_overview", "/overview"),
     ],
 )
-def test_link_detail_methods_build_expected_paths(method_name: str, expected_suffix: str) -> None:
+def test_link_detail_methods_build_expected_paths(
+    method_name: str, expected_suffix: str
+) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.url.path == f"/v1/links/abc-123{expected_suffix}"
         return httpx.Response(200, json={"success": True, "data": {}})
@@ -299,7 +337,9 @@ def test_link_detail_methods_build_expected_paths(method_name: str, expected_suf
         ("get_plant_overview", b"/v1/links/a%2Fb/overview"),
     ],
 )
-def test_link_detail_methods_encode_slashes_in_link_id(method_name: str, expected_raw_path: bytes) -> None:
+def test_link_detail_methods_encode_slashes_in_link_id(
+    method_name: str, expected_raw_path: bytes
+) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "GET"
         assert request.url.raw_path == expected_raw_path
@@ -375,7 +415,9 @@ def test_request_treats_300_as_error() -> None:
 
 def test_request_sends_expected_header_key_exactly() -> None:
     recording_http_client = RecordingHttpClient()
-    client = OsolarLinkClient(api_key="test-key", http_client=cast(httpx.Client, recording_http_client))
+    client = OsolarLinkClient(
+        api_key="test-key", http_client=cast(httpx.Client, recording_http_client)
+    )
     try:
         client.list_linked_plants()
         method, _, kwargs = recording_http_client.calls[0]
@@ -387,7 +429,9 @@ def test_request_sends_expected_header_key_exactly() -> None:
 
 def test_init_uses_default_base_url() -> None:
     recording_http_client = RecordingHttpClient()
-    client = OsolarLinkClient(api_key="test-key", http_client=cast(httpx.Client, recording_http_client))
+    client = OsolarLinkClient(
+        api_key="test-key", http_client=cast(httpx.Client, recording_http_client)
+    )
     try:
         client.list_linked_plants()
         _, url, _ = recording_http_client.calls[0]
@@ -432,6 +476,34 @@ def test_init_does_not_strip_non_slash_suffix_from_base_url() -> None:
         client.close()
 
 
+def test_init_rejects_insecure_http_base_url_for_non_localhost() -> None:
+    recording_http_client = RecordingHttpClient()
+    with pytest.raises(
+        ValueError,
+        match=r"^`base_url` must use https:// \(http:// is allowed only for localhost\)\.$",
+    ):
+        OsolarLinkClient(
+            api_key="test-key",
+            base_url="http://example.com",
+            http_client=cast(httpx.Client, recording_http_client),
+        )
+
+
+def test_init_allows_http_base_url_for_localhost() -> None:
+    recording_http_client = RecordingHttpClient()
+    client = OsolarLinkClient(
+        api_key="test-key",
+        base_url="http://127.0.0.1:8080",
+        http_client=cast(httpx.Client, recording_http_client),
+    )
+    try:
+        client.list_linked_plants()
+        _, url, _ = recording_http_client.calls[0]
+        assert url == "http://127.0.0.1:8080/v1/links"
+    finally:
+        client.close()
+
+
 def test_init_uses_default_timeout_for_owned_http_client() -> None:
     client = OsolarLinkClient(api_key="test-key")
     try:
@@ -455,7 +527,14 @@ def test_search_plants_passes_expected_request_signature() -> None:
     client = RecordingRequestClient()
     result = client.search_plants(q="foo", field="address", distance_km=2.0)
     assert result["success"] is True
-    assert client.calls == [("GET", "/v1/search", {"q": "foo", "field": "address", "distance_km": 2.0}, None)]
+    assert client.calls == [
+        (
+            "GET",
+            "/v1/search",
+            {"q": "foo", "field": "address", "distance_km": 2.0},
+            None,
+        )
+    ]
 
 
 def test_link_plant_passes_expected_request_signature() -> None:
@@ -479,6 +558,61 @@ def test_get_plant_info_passes_expected_request_signature() -> None:
     assert client.calls == [("GET", "/v1/links/abc%2Fdef", None, None)]
 
 
+def test_get_plant_contract_normalizes_legacy_rec_fixed_contract_object() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/links/link-1/contract"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "ppa_type": "PPA",
+                    "rec_trade_type": "fixed",
+                    "rec_fixed_contract": {"target": "동서발전"},
+                },
+            },
+        )
+
+    client, http_client = make_client(handler)
+    try:
+        response = client.get_plant_contract("link-1")
+        assert response["success"] is True
+        assert response["data"] is not None
+        assert response["data"]["rec_contracts"] == [
+            {"target": "동서발전", "ess": False}
+        ]
+        assert "rec_fixed_contract" not in response["data"]
+    finally:
+        http_client.close()
+
+
+def test_get_plant_contract_defaults_ess_for_rec_contracts_items() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/links/link-1/contract"
+        return httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "ppa_type": "PPA",
+                    "rec_trade_type": "fixed",
+                    "rec_contracts": [{"target": "동서발전"}],
+                },
+            },
+        )
+
+    client, http_client = make_client(handler)
+    try:
+        response = client.get_plant_contract("link-1")
+        assert response["success"] is True
+        assert response["data"] is not None
+        assert response["data"]["rec_contracts"] == [
+            {"target": "동서발전", "ess": False}
+        ]
+    finally:
+        http_client.close()
+
+
 @pytest.mark.parametrize(
     ("method_name", "expected_path"),
     [
@@ -487,7 +621,9 @@ def test_get_plant_info_passes_expected_request_signature() -> None:
         ("get_plant_overview", "/v1/links/abc%2Fdef/overview"),
     ],
 )
-def test_link_detail_methods_pass_expected_request_signature(method_name: str, expected_path: str) -> None:
+def test_link_detail_methods_pass_expected_request_signature(
+    method_name: str, expected_path: str
+) -> None:
     client = RecordingRequestClient()
     method = getattr(client, method_name)
     result = method("abc/def")
@@ -532,7 +668,9 @@ def test_context_manager_closes_owned_http_client() -> None:
 
 
 def test_close_does_not_close_injected_http_client() -> None:
-    transport = httpx.MockTransport(lambda _: httpx.Response(200, json={"success": True}))
+    transport = httpx.MockTransport(
+        lambda _: httpx.Response(200, json={"success": True})
+    )
     shared_http_client = httpx.Client(transport=transport)
     client = OsolarLinkClient(
         api_key="test-key",

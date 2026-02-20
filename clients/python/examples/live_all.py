@@ -23,7 +23,12 @@ def main() -> int:
 
     def fail(route: str, err: Exception) -> None:
         if isinstance(err, ApiError):
-            results[route] = {"ok": False, "status": err.status_code, "error": str(err.response_body)}
+            results[route] = {
+                "ok": False,
+                "status": err.status_code,
+                "error": str(err),
+                "error_body_redacted": True,
+            }
         else:
             results[route] = {"ok": False, "error": str(err)}
 
@@ -35,7 +40,11 @@ def main() -> int:
         linked = client.list_linked_plants()
         linked_data = linked.get("data") if isinstance(linked, dict) else None
         linked_count = len(linked_data) if isinstance(linked_data, list) else 0
-        if isinstance(linked_data, list) and linked_data and isinstance(linked_data[0], dict):
+        if (
+            isinstance(linked_data, list)
+            and linked_data
+            and isinstance(linked_data[0], dict)
+        ):
             first_link = linked_data[0]
             link_id = first_link.get("link_id")
             if isinstance(link_id, str):
@@ -58,7 +67,12 @@ def main() -> int:
         data = search.get("data") if isinstance(search, dict) else None
         features = data.get("features") if isinstance(data, dict) else None
         feature_count = len(features) if isinstance(features, list) else 0
-        if not plant_uuid_for_link and isinstance(features, list) and features and isinstance(features[0], dict):
+        if (
+            not plant_uuid_for_link
+            and isinstance(features, list)
+            and features
+            and isinstance(features[0], dict)
+        ):
             props = features[0].get("properties")
             if isinstance(props, dict) and isinstance(props.get("plant_uuid"), str):
                 plant_uuid_for_link = props["plant_uuid"]
@@ -85,27 +99,51 @@ def main() -> int:
 
     guarded_routes: list[tuple[str, Callable[[], Any]]] = [
         ("GET /v1/links/{link_id}", lambda: client.get_plant_info(link_id or "")),
-        ("GET /v1/links/{link_id}/contract", lambda: client.get_plant_contract(link_id or "")),
-        ("GET /v1/links/{link_id}/documents", lambda: client.get_plant_documents(link_id or "")),
-        ("GET /v1/links/{link_id}/overview", lambda: client.get_plant_overview(link_id or "")),
-        ("GET /v1/links/{link_id}/generation/monthly", lambda: client.get_monthly_generation(link_id or "")),
-        ("GET /v1/links/{link_id}/billing/monthly", lambda: client.get_monthly_billing(link_id or "")),
+        (
+            "GET /v1/links/{link_id}/contract",
+            lambda: client.get_plant_contract(link_id or ""),
+        ),
+        (
+            "GET /v1/links/{link_id}/documents",
+            lambda: client.get_plant_documents(link_id or ""),
+        ),
+        (
+            "GET /v1/links/{link_id}/overview",
+            lambda: client.get_plant_overview(link_id or ""),
+        ),
+        (
+            "GET /v1/links/{link_id}/generation/monthly",
+            lambda: client.get_monthly_generation(link_id or ""),
+        ),
+        (
+            "GET /v1/links/{link_id}/billing/monthly",
+            lambda: client.get_monthly_billing(link_id or ""),
+        ),
     ]
 
     for route, fn in guarded_routes:
         if not link_id:
-            results[route] = {"ok": False, "skipped": True, "reason": "no linked plant available"}
+            results[route] = {
+                "ok": False,
+                "skipped": True,
+                "reason": "no linked plant available",
+            }
             continue
         try:
             response = fn()
             data = response.get("data") if isinstance(response, dict) else None
-            payload_size = len(data) if isinstance(data, list) else (1 if data is not None else 0)
+            payload_size = (
+                len(data) if isinstance(data, list) else (1 if data is not None else 0)
+            )
             ok(route, payloadSize=payload_size)
         except Exception as err:  # noqa: BLE001
             fail(route, err)
 
     print(json.dumps(results, ensure_ascii=False, indent=2))
-    hard_fail = any((not v.get("ok", False)) and (not v.get("skipped", False)) for v in results.values())
+    hard_fail = any(
+        (not v.get("ok", False)) and (not v.get("skipped", False))
+        for v in results.values()
+    )
     client.close()
     return 1 if hard_fail else 0
 
