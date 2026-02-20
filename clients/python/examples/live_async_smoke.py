@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import sys
+from typing import Any
 
 from osolar_client import ApiError, AsyncOsolarLinkClient
 
@@ -17,7 +18,7 @@ async def amain() -> int:
     async with AsyncOsolarLinkClient(api_key=api_key) as client:
         try:
             response = await client.list_linked_plants()
-            data = response.get("data")
+            data: Any = response.get("data")
             count = len(data) if isinstance(data, list) else 0
             print(json.dumps({"success": response.get("success"), "linkedPlantCount": count}, ensure_ascii=False, indent=2))
             return 0
