@@ -18,7 +18,6 @@ import (
 const defaultBaseURL = "https://openapi.osolar.io"
 const defaultHTTPTimeout = 30 * time.Second
 const maxResponseBodyBytes = 2 << 20
-const maxAPIErrorBodyLogBytes = 8 << 10
 
 type Client struct {
 	apiKey     string
@@ -34,17 +33,10 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
-	if len(e.Body) <= maxAPIErrorBodyLogBytes {
-		return fmt.Sprintf("osolar api error %d %s: %s", e.StatusCode, e.Status, e.Body)
+	if len(e.Body) == 0 {
+		return fmt.Sprintf("osolar api error %d %s", e.StatusCode, e.Status)
 	}
-
-	return fmt.Sprintf(
-		"osolar api error %d %s: %s...(truncated, total %d bytes)",
-		e.StatusCode,
-		e.Status,
-		e.Body[:maxAPIErrorBodyLogBytes],
-		len(e.Body),
-	)
+	return fmt.Sprintf("osolar api error %d %s (body %d bytes)", e.StatusCode, e.Status, len(e.Body))
 }
 
 func NewClient(apiKey string, baseURL string, httpClient *http.Client) *Client {
@@ -133,6 +125,9 @@ func doJSON[T any](ctx context.Context, c *Client, method string, path string, q
 	if c.initErr != nil {
 		return nil, c.initErr
 	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
 	fullURL := c.baseURL + path
 	if len(query) > 0 {
@@ -198,6 +193,9 @@ func validateBaseURL(baseURL string) error {
 	}
 	if parsed.Scheme == "" || parsed.Host == "" {
 		return errors.New("invalid base URL: scheme and host are required")
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return errors.New("invalid base URL: query and fragment are not allowed")
 	}
 	if parsed.Scheme == "https" {
 		return nil

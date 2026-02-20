@@ -38,6 +38,25 @@ func TestNewClientRejectsInsecureNonLoopbackBaseURL(t *testing.T) {
 	}
 }
 
+func TestNewClientRejectsBaseURLWithQueryOrFragment(t *testing.T) {
+	tests := []string{
+		"https://example.com?x=1",
+		"https://example.com#frag",
+		"https://example.com/api?x=1",
+		"https://example.com/api#frag",
+	}
+
+	for _, baseURL := range tests {
+		t.Run(baseURL, func(t *testing.T) {
+			client := NewClient("test-key", baseURL, &http.Client{Timeout: time.Second})
+			_, err := client.ListLinkedPlants(context.Background())
+			if err == nil || !strings.Contains(err.Error(), "query and fragment are not allowed") {
+				t.Fatalf("expected base URL query/fragment error, got %v", err)
+			}
+		})
+	}
+}
+
 func TestNewClientAllowsLoopbackHTTPBaseURL(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, map[string]any{"success": true, "data": []any{}})
@@ -47,6 +66,27 @@ func TestNewClientAllowsLoopbackHTTPBaseURL(t *testing.T) {
 	client := NewClient("test-key", ts.URL, ts.Client())
 	_, err := client.ListLinkedPlants(context.Background())
 	if err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+}
+
+func TestNilContextDoesNotPanic(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Context() == nil {
+			t.Fatal("expected non-nil request context")
+		}
+		writeJSON(t, w, map[string]any{"success": true, "data": []any{}})
+	}))
+	defer ts.Close()
+
+	client := NewClient("test-key", ts.URL, ts.Client())
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("expected no panic, got %v", r)
+		}
+	}()
+
+	if _, err := client.ListLinkedPlants(nil); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
 }
@@ -400,15 +440,18 @@ func TestTreatsNoContentAsSuccess(t *testing.T) {
 	}
 }
 
-func TestAPIErrorStringTruncatesBody(t *testing.T) {
+func TestAPIErrorStringRedactsBody(t *testing.T) {
 	apiErr := &APIError{
 		StatusCode: http.StatusBadRequest,
 		Status:     "400 Bad Request",
-		Body:       []byte(strings.Repeat("a", maxAPIErrorBodyLogBytes+32)),
+		Body:       []byte("secret\nwith-newline"),
 	}
 	msg := apiErr.Error()
-	if !strings.Contains(msg, "truncated") {
-		t.Fatalf("expected truncated marker, got %s", msg)
+	if strings.Contains(msg, "secret") {
+		t.Fatalf("expected error string to redact body, got %s", msg)
+	}
+	if !strings.Contains(msg, "body 19 bytes") {
+		t.Fatalf("expected body length marker, got %s", msg)
 	}
 }
 
