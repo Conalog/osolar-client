@@ -591,4 +591,64 @@ describe("OsolarLinkClient", () => {
 
     await expect(client.listLinkedPlants()).rejects.toThrow("Expected ApiResponse envelope with boolean success");
   });
+
+  it("supports AbortSignal from options", async () => {
+    const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return new Response(JSON.stringify({ success: true, data: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    const controller = new AbortController();
+    await client.listLinkedPlants({ signal: controller.signal });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("applies timeout from config", async () => {
+    const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return new Response(JSON.stringify({ success: true, data: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+      timeout: 1000,
+    });
+
+    await client.listLinkedPlants();
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("applies timeout from options overriding config", async () => {
+    const fetchMock = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return new Response(JSON.stringify({ success: true, data: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    const client = new OsolarLinkClient({
+      apiKey: "test-key",
+      baseUrl: "https://example.com",
+      fetchFn: fetchMock as unknown as typeof fetch,
+      timeout: 5000,
+    });
+
+    await client.listLinkedPlants({ timeout: 1000 });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });
