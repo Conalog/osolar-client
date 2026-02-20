@@ -15,7 +15,13 @@ function ok(route, detail) {
 
 function fail(route, error) {
   if (error instanceof ApiError) {
-    results[route] = { ok: false, status: error.status, error: String(error.responseBody) };
+    results[route] = {
+      ok: false,
+      status: error.status,
+      statusText: error.statusText,
+      error: "ApiError",
+      responseBody: "[redacted]",
+    };
     return;
   }
   results[route] = { ok: false, error: String(error) };
