@@ -1,5 +1,5 @@
 use osolar_client::models::{
-    CapacityValue, GeoPoint, PlantConnectionListResponse, PlantConnectionRequest,
+    BillingAmountResponse, CapacityValue, GeoPoint, PlantConnectionListResponse, PlantConnectionRequest,
     PlantConnectionResponse, PlantContractResponse, PlantInfoResponse, PlantOverviewResponse,
     PlantOwner,
 };
@@ -191,4 +191,17 @@ fn deserialize_contract_response_defaults_missing_ess_to_false() {
         serde_json::from_value(raw).expect("contract without ess should deserialize");
     assert_eq!(parsed.rec_contracts.len(), 1);
     assert!(!parsed.rec_contracts[0].ess);
+}
+
+#[test]
+fn deserialize_billing_allows_null_rec_billing_amount() {
+    let raw = json!({
+        "billing_month": "2024-01",
+        "smp_billing_amount": 10,
+        "rec_billing_amount": null
+    });
+
+    let parsed: BillingAmountResponse =
+        serde_json::from_value(raw).expect("billing response should deserialize");
+    assert!(parsed.rec_billing_amount.is_none());
 }

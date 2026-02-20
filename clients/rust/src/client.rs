@@ -1,7 +1,10 @@
+use reqwest::redirect;
 use reqwest::Method;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
+use std::fmt;
+use std::io::Read;
 use std::time::Duration;
 
 use crate::error::ApiError;
@@ -14,12 +17,24 @@ use crate::models::{
 
 const DEFAULT_BASE_URL: &str = "https://openapi.osolar.io";
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+const MAX_RESPONSE_BYTES: u64 = 10 * 1024 * 1024;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OsolarClient {
     api_key: String,
     base_url: String,
     http_client: reqwest::blocking::Client,
+    allow_insecure_http: bool,
+}
+
+impl fmt::Debug for OsolarClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("OsolarClient")
+            .field("api_key", &"<redacted>")
+            .field("base_url", &self.base_url)
+            .field("allow_insecure_http", &self.allow_insecure_http)
+            .finish_non_exhaustive()
+    }
 }
 
 impl OsolarClient {
@@ -28,14 +43,21 @@ impl OsolarClient {
             api_key: api_key.into(),
             base_url: DEFAULT_BASE_URL.to_string(),
             http_client: reqwest::blocking::Client::builder()
+                .redirect(redirect::Policy::none())
                 .timeout(DEFAULT_TIMEOUT)
                 .build()
                 .unwrap_or_else(|_| reqwest::blocking::Client::new()),
+            allow_insecure_http: false,
         }
     }
 
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         self.base_url = base_url.into().trim_end_matches('/').to_string();
+        self
+    }
+
+    pub fn allow_insecure_http(mut self) -> Self {
+        self.allow_insecure_http = true;
         self
     }
 
@@ -194,6 +216,17 @@ impl OsolarClient {
         B: Serialize,
         T: DeserializeOwned,
     {
+        if !self.allow_insecure_http {
+            let parsed = reqwest::Url::parse(&self.base_url).map_err(|_| ApiError::InvalidBaseUrl {
+                base_url: self.base_url.clone(),
+            })?;
+            if parsed.scheme() != "https" {
+                return Err(ApiError::InsecureBaseUrl {
+                    base_url: self.base_url.clone(),
+                });
+            }
+        }
+
         let url = format!("{}{}", self.base_url, path);
         let mut request = self
             .http_client
@@ -210,7 +243,26 @@ impl OsolarClient {
 
         let response = request.send()?;
         let status = response.status();
-        let raw_body = response.bytes()?;
+        let content_length = response.content_length();
+        if let Some(len) = content_length {
+            if len > MAX_RESPONSE_BYTES {
+                return Err(ApiError::ResponseTooLarge {
+                    content_length,
+                    limit_bytes: MAX_RESPONSE_BYTES,
+                });
+            }
+        }
+
+        let mut raw_body = Vec::new();
+        response
+            .take(MAX_RESPONSE_BYTES + 1)
+            .read_to_end(&mut raw_body)?;
+        if raw_body.len() as u64 > MAX_RESPONSE_BYTES {
+            return Err(ApiError::ResponseTooLarge {
+                content_length,
+                limit_bytes: MAX_RESPONSE_BYTES,
+            });
+        }
 
         if !status.is_success() {
             let body = match serde_json::from_slice::<Value>(&raw_body) {

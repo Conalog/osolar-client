@@ -18,6 +18,7 @@ clients/python/.pytest_cache/
 clients/go/coverage.out
 
 # Rust
+target/
 clients/rust/target/
 Cargo.lock
 
