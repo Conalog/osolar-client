@@ -21,6 +21,7 @@ const DOCUMENTS_SUFFIX: &str = "/documents";
 const OVERVIEW_SUFFIX: &str = "/overview";
 const MONTHLY_GENERATION_SUFFIX: &str = "/generation/monthly";
 const MONTHLY_BILLING_SUFFIX: &str = "/billing/monthly";
+const EMPTY_SUCCESS_RESPONSE: &[u8] = br#"{"success":true,"data":null}"#;
 
 #[derive(Debug, Clone, Copy)]
 struct YearQueryKeys {
@@ -38,6 +39,7 @@ const CAMEL_CASE_YEAR_KEYS: YearQueryKeys = YearQueryKeys {
 };
 
 type QueryPairs = Vec<(&'static str, String)>;
+
 
 #[derive(Debug, Clone)]
 pub struct OsolarClient {
@@ -201,6 +203,11 @@ impl OsolarClient {
                 status: status.as_u16(),
                 body,
             });
+        }
+
+        if raw_body.is_empty() || status == reqwest::StatusCode::NO_CONTENT {
+            // Keep behavior aligned with other SDKs for successful empty responses.
+            return Ok(serde_json::from_slice::<T>(EMPTY_SUCCESS_RESPONSE)?);
         }
 
         Ok(serde_json::from_slice::<T>(&raw_body)?)
