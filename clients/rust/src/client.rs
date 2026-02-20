@@ -14,7 +14,32 @@ use crate::models::{
 
 const DEFAULT_BASE_URL: &str = "https://openapi.osolar.io";
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
+const SEARCH_PATH: &str = "/v1/search";
+const LINKS_PATH: &str = "/v1/links";
+const CONTRACT_SUFFIX: &str = "/contract";
+const DOCUMENTS_SUFFIX: &str = "/documents";
+const OVERVIEW_SUFFIX: &str = "/overview";
+const MONTHLY_GENERATION_SUFFIX: &str = "/generation/monthly";
+const MONTHLY_BILLING_SUFFIX: &str = "/billing/monthly";
 const EMPTY_SUCCESS_RESPONSE: &[u8] = br#"{"success":true,"data":null}"#;
+
+#[derive(Debug, Clone, Copy)]
+struct YearQueryKeys {
+    start: &'static str,
+    end: &'static str,
+}
+
+const SNAKE_CASE_YEAR_KEYS: YearQueryKeys = YearQueryKeys {
+    start: "start_year",
+    end: "end_year",
+};
+const CAMEL_CASE_YEAR_KEYS: YearQueryKeys = YearQueryKeys {
+    start: "startYear",
+    end: "endYear",
+};
+
+type QueryPairs = Vec<(&'static str, String)>;
+
 
 #[derive(Debug, Clone)]
 pub struct OsolarClient {
@@ -49,86 +74,53 @@ impl OsolarClient {
         &self,
         params: SearchPlantsParams,
     ) -> Result<ApiResponse<PlantGeoJsonResponse>, ApiError> {
-        let mut query = vec![("q", params.q), ("field", params.field)];
-        if let Some(distance_km) = params.distance_km {
-            query.push(("distance_km", distance_km.to_string()));
-        }
-        self.request(Method::GET, "/v1/search", Some(&query), Option::<&()>::None)
+        let query = search_query(params);
+        self.get_json(SEARCH_PATH, query_slice(&query))
     }
 
     pub fn connect_plant(
         &self,
         body: &PlantConnectionRequest,
     ) -> Result<ApiResponse<PlantConnectionResponse>, ApiError> {
-        self.request(
-            Method::POST,
-            "/v1/links",
-            None::<&[(&str, String)]>,
-            Some(body),
-        )
+        self.post_json(LINKS_PATH, body)
     }
 
     pub fn list_connected_plants(
         &self,
     ) -> Result<ApiResponse<Vec<PlantConnectionListResponse>>, ApiError> {
-        self.request(
-            Method::GET,
-            "/v1/links",
-            None::<&[(&str, String)]>,
-            Option::<&()>::None,
-        )
+        self.get_json(LINKS_PATH, None::<&[(&'static str, String)]>)
     }
 
     pub fn get_plant_info(
         &self,
         connection_id: &str,
     ) -> Result<ApiResponse<PlantInfoResponse>, ApiError> {
-        let path = format!("/v1/links/{}", urlencoding::encode(connection_id));
-        self.request(
-            Method::GET,
-            &path,
-            None::<&[(&str, String)]>,
-            Option::<&()>::None,
-        )
+        let path = link_path(connection_id, "");
+        self.get_json(&path, None::<&[(&'static str, String)]>)
     }
 
     pub fn get_plant_contract(
         &self,
         connection_id: &str,
     ) -> Result<ApiResponse<PlantContractResponse>, ApiError> {
-        let path = format!("/v1/links/{}/contract", urlencoding::encode(connection_id));
-        self.request(
-            Method::GET,
-            &path,
-            None::<&[(&str, String)]>,
-            Option::<&()>::None,
-        )
+        let path = link_path(connection_id, CONTRACT_SUFFIX);
+        self.get_json(&path, None::<&[(&'static str, String)]>)
     }
 
     pub fn get_plant_documents(
         &self,
         connection_id: &str,
     ) -> Result<ApiResponse<Vec<DocumentResponse>>, ApiError> {
-        let path = format!("/v1/links/{}/documents", urlencoding::encode(connection_id));
-        self.request(
-            Method::GET,
-            &path,
-            None::<&[(&str, String)]>,
-            Option::<&()>::None,
-        )
+        let path = link_path(connection_id, DOCUMENTS_SUFFIX);
+        self.get_json(&path, None::<&[(&'static str, String)]>)
     }
 
     pub fn get_plant_overview(
         &self,
         connection_id: &str,
     ) -> Result<ApiResponse<PlantOverviewResponse>, ApiError> {
-        let path = format!("/v1/links/{}/overview", urlencoding::encode(connection_id));
-        self.request(
-            Method::GET,
-            &path,
-            None::<&[(&str, String)]>,
-            Option::<&()>::None,
-        )
+        let path = link_path(connection_id, OVERVIEW_SUFFIX);
+        self.get_json(&path, None::<&[(&'static str, String)]>)
     }
 
     pub fn get_monthly_generation(
@@ -136,25 +128,9 @@ impl OsolarClient {
         connection_id: &str,
         params: MonthlyGenerationParams,
     ) -> Result<ApiResponse<Vec<GenerationAmountResponse>>, ApiError> {
-        let mut query: Vec<(&str, String)> = vec![];
-        if let Some(start_year) = params.start_year {
-            // OpenAPI contract uses snake_case for generation filters.
-            query.push(("start_year", start_year.to_string()));
-        }
-        if let Some(end_year) = params.end_year {
-            query.push(("end_year", end_year.to_string()));
-        }
-
-        let path = format!(
-            "/v1/links/{}/generation/monthly",
-            urlencoding::encode(connection_id)
-        );
-        let query_ref = if query.is_empty() {
-            None
-        } else {
-            Some(query.as_slice())
-        };
-        self.request(Method::GET, &path, query_ref, Option::<&()>::None)
+        let path = link_path(connection_id, MONTHLY_GENERATION_SUFFIX);
+        let query = monthly_year_query(params.start_year, params.end_year, SNAKE_CASE_YEAR_KEYS);
+        self.get_json(&path, query_slice(&query))
     }
 
     pub fn get_monthly_billing(
@@ -162,25 +138,30 @@ impl OsolarClient {
         connection_id: &str,
         params: MonthlyBillingParams,
     ) -> Result<ApiResponse<Vec<BillingAmountResponse>>, ApiError> {
-        let mut query: Vec<(&str, String)> = vec![];
-        if let Some(start_year) = params.start_year {
-            // OpenAPI contract uses camelCase for billing filters.
-            query.push(("startYear", start_year.to_string()));
-        }
-        if let Some(end_year) = params.end_year {
-            query.push(("endYear", end_year.to_string()));
-        }
+        let path = link_path(connection_id, MONTHLY_BILLING_SUFFIX);
+        let query = monthly_year_query(params.start_year, params.end_year, CAMEL_CASE_YEAR_KEYS);
+        self.get_json(&path, query_slice(&query))
+    }
 
-        let path = format!(
-            "/v1/links/{}/billing/monthly",
-            urlencoding::encode(connection_id)
-        );
-        let query_ref = if query.is_empty() {
-            None
-        } else {
-            Some(query.as_slice())
-        };
-        self.request(Method::GET, &path, query_ref, Option::<&()>::None)
+    fn get_json<T, Q>(&self, path: &str, query: Option<Q>) -> Result<T, ApiError>
+    where
+        T: DeserializeOwned,
+        Q: Serialize,
+    {
+        self.request(Method::GET, path, query, None::<Value>)
+    }
+
+    fn post_json<T, B>(&self, path: &str, body: &B) -> Result<T, ApiError>
+    where
+        T: DeserializeOwned,
+        B: Serialize + ?Sized,
+    {
+        self.request(
+            Method::POST,
+            path,
+            None::<&[(&'static str, String)]>,
+            Some(body),
+        )
     }
 
     fn request<Q, B, T>(
@@ -230,5 +211,91 @@ impl OsolarClient {
         }
 
         Ok(serde_json::from_slice::<T>(&raw_body)?)
+    }
+}
+
+fn search_query(params: SearchPlantsParams) -> QueryPairs {
+    let mut query = vec![("q", params.q), ("field", params.field)];
+    if let Some(distance_km) = params.distance_km {
+        query.push(("distance_km", distance_km.to_string()));
+    }
+    query
+}
+
+fn monthly_year_query(
+    start_year: Option<i64>,
+    end_year: Option<i64>,
+    keys: YearQueryKeys,
+) -> QueryPairs {
+    let mut query = Vec::new();
+    if let Some(start_year) = start_year {
+        query.push((keys.start, start_year.to_string()));
+    }
+    if let Some(end_year) = end_year {
+        query.push((keys.end, end_year.to_string()));
+    }
+    query
+}
+
+fn query_slice(query: &QueryPairs) -> Option<&[(&'static str, String)]> {
+    if query.is_empty() {
+        None
+    } else {
+        Some(query.as_slice())
+    }
+}
+
+fn link_path(connection_id: &str, suffix: &str) -> String {
+    format!(
+        "{}/{encoded_connection_id}{suffix}",
+        LINKS_PATH,
+        encoded_connection_id = urlencoding::encode(connection_id)
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn link_path_encodes_connection_id() {
+        assert_eq!(
+            link_path("conn id/with/slash", ""),
+            "/v1/links/conn%20id%2Fwith%2Fslash"
+        );
+        assert_eq!(
+            link_path("conn id/with/slash", MONTHLY_BILLING_SUFFIX),
+            "/v1/links/conn%20id%2Fwith%2Fslash/billing/monthly"
+        );
+    }
+
+    #[test]
+    fn monthly_year_query_uses_selected_key_style() {
+        let snake_case = monthly_year_query(Some(2023), Some(2024), SNAKE_CASE_YEAR_KEYS);
+        assert_eq!(
+            snake_case,
+            vec![
+                ("start_year", "2023".to_string()),
+                ("end_year", "2024".to_string())
+            ]
+        );
+
+        let camel_case = monthly_year_query(Some(2023), Some(2024), CAMEL_CASE_YEAR_KEYS);
+        assert_eq!(
+            camel_case,
+            vec![
+                ("startYear", "2023".to_string()),
+                ("endYear", "2024".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn monthly_year_query_omits_missing_values() {
+        assert!(monthly_year_query(None, None, SNAKE_CASE_YEAR_KEYS).is_empty());
+        assert_eq!(
+            monthly_year_query(Some(2023), None, CAMEL_CASE_YEAR_KEYS),
+            vec![("startYear", "2023".to_string())]
+        );
     }
 }
