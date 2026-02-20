@@ -46,7 +46,7 @@ impl OsolarClient {
                 .redirect(redirect::Policy::none())
                 .timeout(DEFAULT_TIMEOUT)
                 .build()
-                .unwrap_or_else(|_| reqwest::blocking::Client::new()),
+                .expect("failed to build hardened http client"),
             allow_insecure_http: false,
         }
     }
@@ -253,7 +253,8 @@ impl OsolarClient {
             }
         }
 
-        let mut raw_body = Vec::new();
+        let mut raw_body =
+            Vec::with_capacity(content_length.and_then(|len| usize::try_from(len).ok()).unwrap_or(0));
         response
             .take(MAX_RESPONSE_BYTES + 1)
             .read_to_end(&mut raw_body)?;
