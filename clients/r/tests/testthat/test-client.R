@@ -194,6 +194,18 @@ test_that("base_url defaults and disallows insecure non-localhost HTTP", {
   )
 })
 
+test_that("base_url rejects query parameters and fragments", {
+  expect_error(
+    osolar_client("test-key", base_url = "https://example.com?tenant=a"),
+    "`base_url` must not include query parameters or a fragment\\."
+  )
+
+  expect_error(
+    osolar_client("test-key", base_url = "https://example.com#section"),
+    "`base_url` must not include query parameters or a fragment\\."
+  )
+})
+
 test_that("get_plant_contract normalizes legacy rec_fixed_contract object", {
   fake <- make_client_with_fake_request(list(
     status_code = 200,

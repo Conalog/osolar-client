@@ -132,6 +132,10 @@ get_monthly_billing <- function(client, link_id, start_year = NULL, end_year = N
   if (is.null(parsed$hostname) || parsed$hostname == "") {
     stop("`base_url` must include a hostname.", call. = FALSE)
   }
+  if ((!is.null(parsed$query) && length(parsed$query) > 0) ||
+      (!is.null(parsed$fragment) && nzchar(parsed$fragment))) {
+    stop("`base_url` must not include query parameters or a fragment.", call. = FALSE)
+  }
 
   if (parsed$scheme == "http" && !(parsed$hostname %in% c("127.0.0.1", "localhost", "::1"))) {
     stop("`base_url` must use https:// (http:// is allowed only for localhost).", call. = FALSE)
